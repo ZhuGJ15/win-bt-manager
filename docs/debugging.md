@@ -74,3 +74,56 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | NETSDK1135 修复 | 已完成 | 已将 `TargetFramework` 从 `net8.0-windows` 调整为 `net8.0-windows10.0.18362.0` |
 | 本机命令行构建 | 未完成 | 当前环境没有 `dotnet` 命令，且不是 Windows WPF 调试环境 |
 | 用户 Windows 调试确认 | 已完成 | 用户已确认命令行调试后可以打开窗口 |
+
+## 功能 2：基础 UI 与模拟设备数据
+
+### 目标
+
+验证主窗口已经具备初步设备监控界面，可以使用模拟数据展示设备列表、设备类型、连接状态、电量、底部展示开关、托盘展示开关和手动刷新。
+
+### 前置条件
+
+| 条件 | 说明 |
+| --- | --- |
+| 操作系统 | Windows 10 或 Windows 11 |
+| SDK | .NET 8 SDK |
+| 已完成前置功能 | 功能 1：C# WPF 工程骨架 |
+
+### 命令行调试方式
+
+在项目根目录执行：
+
+```powershell
+dotnet build WindowsBlueToothManager.sln
+dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
+```
+
+### 预期结果
+
+| 检查项 | 预期结果 |
+| --- | --- |
+| 主窗口布局 | 打开后不再是骨架提示页，而是设备监控界面 |
+| 顶部区域 | 显示应用名、模拟数据状态和 `Refresh` 按钮 |
+| 统计区域 | 显示 Connected、Shown at bottom、Low battery 三个统计值 |
+| 设备列表 | 至少显示 4 条模拟设备数据 |
+| 设备类型 | 列表中能看到 BLE、BTC、Unknown |
+| 电量展示 | 有百分比、进度条、低电量提示和 Unknown 电量 |
+| 展示开关 | 勾选或取消 Bottom/Tray 后，统计值和 Display 列会更新 |
+| 手动刷新 | 点击 `Refresh` 后更新时间变化，部分模拟电量会小幅变化 |
+
+### 常见问题排查
+
+| 问题 | 处理方式 |
+| --- | --- |
+| 窗口仍显示骨架提示页 | 确认已拉取或保存最新代码，并重新执行 `dotnet build` |
+| 表格没有设备数据 | 确认 `MainWindow.xaml.cs` 中设置了 `DataContext = _viewModel` |
+| 勾选 Bottom/Tray 后统计不变 | 确认点击的是复选框本身，或切换单元格后观察统计区域 |
+| 真实蓝牙设备没有出现 | 当前功能只使用模拟数据，真实设备枚举会在后续功能接入 |
+
+### 当前验证状态
+
+| 项目 | 状态 | 备注 |
+| --- | --- | --- |
+| 文件结构检查 | 已完成 | 已新增模型和 ViewModel，主窗口已绑定模拟数据 |
+| 本机静态检查 | 已完成 | 当前环境可做 XML/XAML 格式检查，但不能运行 WPF |
+| 用户 Windows 调试确认 | 待确认 | 需要用户按本文档在 Windows 10/11 上验证 |
