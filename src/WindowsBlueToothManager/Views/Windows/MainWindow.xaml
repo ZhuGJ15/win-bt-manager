@@ -33,11 +33,11 @@
             <Setter Property="Foreground" Value="#475569" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Padding" Value="12,10" />
-            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="BorderBrush" Value="#EDF2F7" />
         </Style>
 
         <Style TargetType="DataGridCell">
-            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="BorderBrush" Value="#EDF2F7" />
             <Setter Property="Padding" Value="12,8" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
@@ -218,6 +218,7 @@
                               RowHeight="58"
                               BorderThickness="0"
                               Background="#FFFFFF"
+                              HorizontalGridLinesBrush="#EDF2F7"
                               AlternatingRowBackground="#F8FAFC">
                         <DataGrid.Columns>
                             <DataGridTextColumn x:Name="DeviceColumn"

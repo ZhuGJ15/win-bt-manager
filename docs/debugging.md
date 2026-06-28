@@ -112,6 +112,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 状态颜色 | 设备状态为“已连接/Connected”时文字为绿色，“已断开/Disconnected”时文字为灰色 |
 | 电量条颜色 | 电量低于 50% 时进度条为黄色，低于 20% 时进度条为红色，正常电量为绿色 |
 | 电量百分比位置 | 电量百分比不再贴近单元格右边缘，应靠近进度条右侧显示 |
+| 行分隔线 | 设备列表上下行分隔线应为很淡的灰色，不应比整体浅色界面突兀 |
 | 展示开关 | 勾选或取消 Bottom/Tray 后，统计值和 Display 列会更新 |
 | 刷新频率 | 在顶部菜单栏打开 `设置/Settings` -> `刷新频率/Refresh frequency`，可选择 5s、10s、30s、1min |
 | 自动刷新 | 选择刷新频率后，等待对应时间，更新时间变化，当前数据源会自动刷新 |
