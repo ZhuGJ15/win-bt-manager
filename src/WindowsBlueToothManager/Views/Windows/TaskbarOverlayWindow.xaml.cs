@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
+using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Threading;
 using WindowsBlueToothManager.ViewModels;
 
@@ -11,24 +13,25 @@ public partial class TaskbarOverlayWindow : Window
     private const int GwlStyle = -16;
     private const int GwlExStyle = -20;
     private const long WsChild = 0x40000000L;
-    private const long WsPopup = 0x80000000L;
     private const long WsVisible = 0x10000000L;
     private const long WsExNoParentNotify = 0x00000004L;
     private const long WsExTransparent = 0x00000020L;
     private const uint SwpNoZOrder = 0x0004;
     private const uint SwpNoActivate = 0x0010;
     private const uint SwpShowWindow = 0x0040;
-    private const int HorizontalTaskbarReservedWidth = 360;
     private const int VerticalTaskbarReservedHeight = 160;
 
     private readonly MainWindowViewModel _viewModel;
     private readonly DispatcherTimer _positionTimer = new();
+    private HwndSource? _hwndSource;
     private IntPtr _windowHandle;
     private IntPtr _taskbarHandle;
+    private bool _isAdjustingWindow;
 
     public TaskbarOverlayWindow(MainWindowViewModel viewModel)
     {
         InitializeComponent();
+        RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
         _viewModel = viewModel;
         DataContext = viewModel;
         SourceInitialized += OnSourceInitialized;
@@ -45,35 +48,53 @@ public partial class TaskbarOverlayWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        AttachAndPosition();
+        if (!AttachAndPosition())
+        {
+            System.Windows.MessageBox.Show(
+                "任务栏嵌入失败：未找到 Windows 任务栏容器。",
+                "WindowsBlueToothManager",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        _hwndSource = HwndSource.FromHwnd(_windowHandle);
+        _hwndSource?.AddHook(WpfWndProc);
         _positionTimer.Start();
     }
 
     private void OnClosed(object? sender, EventArgs e)
     {
         _positionTimer.Stop();
+        _hwndSource?.RemoveHook(WpfWndProc);
+        _hwndSource?.Dispose();
+        _hwndSource = null;
+        if (_windowHandle != IntPtr.Zero)
+        {
+            SetParent(_windowHandle, IntPtr.Zero);
+        }
+
         SourceInitialized -= OnSourceInitialized;
         Loaded -= OnLoaded;
         Closed -= OnClosed;
     }
 
-    private void AttachAndPosition()
+    private bool AttachAndPosition()
     {
         if (_windowHandle == IntPtr.Zero)
         {
-            _windowHandle = new WindowInteropHelper(this).Handle;
+            _windowHandle = new WindowInteropHelper(this).EnsureHandle();
         }
 
-        _taskbarHandle = FindWindow("Shell_TrayWnd", null);
+        _taskbarHandle = FindWindow("Shell_TrayWnd", string.Empty);
         if (_windowHandle == IntPtr.Zero || _taskbarHandle == IntPtr.Zero)
         {
-            return;
+            return false;
         }
 
         if (GetParent(_windowHandle) != _taskbarHandle)
         {
             var style = GetWindowLongPtr(_windowHandle, GwlStyle).ToInt64() & 0xFFFFFFFFL;
-            style &= ~WsPopup;
             style |= WsChild | WsVisible;
             SetWindowLongPtr(_windowHandle, GwlStyle, new IntPtr(style));
 
@@ -84,41 +105,130 @@ public partial class TaskbarOverlayWindow : Window
             SetParent(_windowHandle, _taskbarHandle);
         }
 
-        if (!GetWindowRect(_taskbarHandle, out var rect))
+        AdjustWindowToTaskbar();
+        return true;
+    }
+
+    private void AdjustWindowToTaskbar()
+    {
+        if (_isAdjustingWindow)
         {
             return;
         }
 
-        var taskbarWidth = Math.Max(1, rect.Right - rect.Left);
-        var taskbarHeight = Math.Max(1, rect.Bottom - rect.Top);
-        var isHorizontal = taskbarWidth >= taskbarHeight;
-
-        if (isHorizontal)
+        if (_taskbarHandle == IntPtr.Zero || _windowHandle == IntPtr.Zero)
         {
+            return;
+        }
+
+        try
+        {
+            _isAdjustingWindow = true;
+
+            if (!GetWindowRect(_taskbarHandle, out var taskbarRect))
+            {
+                return;
+            }
+
+            var taskbarWidth = Math.Max(1, taskbarRect.Right - taskbarRect.Left);
+            var taskbarHeight = Math.Max(1, taskbarRect.Bottom - taskbarRect.Top);
+            var isHorizontal = taskbarWidth >= taskbarHeight;
             var displayDeviceCount = Math.Clamp(_viewModel.TaskbarOverlayDevices.Count, 1, 4);
-            var desiredWidth = Math.Clamp(displayDeviceCount * 112, 120, 448);
-            var availableWidth = Math.Max(120, taskbarWidth - HorizontalTaskbarReservedWidth);
-            var width = Math.Min(desiredWidth, availableWidth);
-            var height = Math.Min(46, Math.Max(38, taskbarHeight - 2));
-            var x = Math.Max(0, taskbarWidth - width - HorizontalTaskbarReservedWidth);
-            var y = Math.Max(0, (taskbarHeight - height) / 2);
-            Width = width;
-            Height = height;
-            SetWindowPos(_windowHandle, IntPtr.Zero, x, y, width, height, SwpNoZOrder | SwpNoActivate | SwpShowWindow);
-            return;
+
+            if (isHorizontal)
+            {
+                var alignment = GetTaskbarAlignment();
+                var targetRect = GetTaskbarTargetRect(alignment);
+                OverlayItems.HorizontalAlignment = alignment == 0
+                    ? HorizontalAlignment.Right
+                    : HorizontalAlignment.Left;
+
+                Width = Math.Clamp(displayDeviceCount * 112, 120, 448);
+                Height = Math.Min(46, Math.Max(38, taskbarHeight));
+
+                var dpiAdjustedWidth = (int)Math.Ceiling(Width * GetDpiScale());
+                var x = alignment == 0
+                    ? Math.Max(0, targetRect.Left - taskbarRect.Left - dpiAdjustedWidth)
+                    : Math.Max(0, targetRect.Left - taskbarRect.Left);
+                var y = Math.Max(0, (taskbarHeight - (int)Math.Ceiling(Height * GetDpiScale())) / 2);
+
+                SetWindowPos(
+                    _windowHandle,
+                    IntPtr.Zero,
+                    x,
+                    y,
+                    taskbarWidth,
+                    taskbarHeight,
+                    SwpNoZOrder | SwpNoActivate | SwpShowWindow);
+                return;
+            }
+
+            OverlayItems.HorizontalAlignment = HorizontalAlignment.Center;
+            Width = Math.Min(96, Math.Max(48, taskbarWidth));
+            Height = Math.Min(220, Math.Max(120, displayDeviceCount * 48));
+            var verticalX = Math.Max(0, (taskbarWidth - (int)Math.Ceiling(Width * GetDpiScale())) / 2);
+            var verticalY = Math.Max(0, taskbarHeight - (int)Math.Ceiling(Height * GetDpiScale()) - VerticalTaskbarReservedHeight);
+            SetWindowPos(_windowHandle, IntPtr.Zero, verticalX, verticalY, taskbarWidth, taskbarHeight, SwpNoZOrder | SwpNoActivate | SwpShowWindow);
+        }
+        finally
+        {
+            _isAdjustingWindow = false;
+        }
+    }
+
+    private Rect GetTaskbarTargetRect(int alignment)
+    {
+        if (alignment == 0)
+        {
+            var trayNotifyHandle = FindWindowEx(_taskbarHandle, IntPtr.Zero, "TrayNotifyWnd", string.Empty);
+            if (trayNotifyHandle != IntPtr.Zero && GetWindowRect(trayNotifyHandle, out var trayRect))
+            {
+                return trayRect;
+            }
         }
 
-        var verticalWidth = Math.Min(96, Math.Max(48, taskbarWidth - 2));
-        var verticalHeight = Math.Min(220, Math.Max(120, taskbarHeight / 4));
-        var verticalX = Math.Max(0, (taskbarWidth - verticalWidth) / 2);
-        var verticalY = Math.Max(0, taskbarHeight - verticalHeight - VerticalTaskbarReservedHeight);
-        Width = verticalWidth;
-        Height = verticalHeight;
-        SetWindowPos(_windowHandle, IntPtr.Zero, verticalX, verticalY, verticalWidth, verticalHeight, SwpNoZOrder | SwpNoActivate | SwpShowWindow);
+        return GetWindowRect(_taskbarHandle, out var taskbarRect) ? taskbarRect : default;
+    }
+
+    private IntPtr WpfWndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WmWindowPosChanged)
+        {
+            AdjustWindowToTaskbar();
+            handled = true;
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private double GetDpiScale()
+    {
+        return VisualTreeHelper.GetDpi(this).DpiScaleX;
+    }
+
+    private static int GetTaskbarAlignment()
+    {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000))
+        {
+            return 0;
+        }
+
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced");
+            return Convert.ToInt32(key?.GetValue("TaskbarAl", 0) ?? 0);
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern IntPtr FindWindow(string lpClassName, string? lpWindowName);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr hwndChildAfter, string lpszClass, string? lpszWindow);
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr GetParent(IntPtr hWnd);
@@ -132,6 +242,8 @@ public partial class TaskbarOverlayWindow : Window
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
 
+    private const int WmWindowPosChanged = 0x0047;
+
     private static IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex)
     {
         return IntPtr.Size == 8
@@ -143,7 +255,7 @@ public partial class TaskbarOverlayWindow : Window
     {
         return IntPtr.Size == 8
             ? SetWindowLongPtr64(hWnd, nIndex, dwNewLong)
-            : new IntPtr(SetWindowLong32(hWnd, nIndex, dwNewLong.ToInt32()));
+            : new IntPtr(SetWindowLong32(hWnd, nIndex, unchecked((int)dwNewLong.ToInt64())));
     }
 
     [DllImport("user32.dll", EntryPoint = "GetWindowLong", SetLastError = true)]

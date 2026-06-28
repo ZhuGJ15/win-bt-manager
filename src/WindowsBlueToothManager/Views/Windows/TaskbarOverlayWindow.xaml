@@ -4,8 +4,8 @@
         Width="360"
         Height="44"
         WindowStyle="None"
-        AllowsTransparency="False"
-        Background="#20242B"
+        AllowsTransparency="True"
+        Background="Transparent"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Topmost="False">
@@ -39,7 +39,8 @@
                 </TextBlock.Style>
             </TextBlock>
 
-            <ItemsControl ItemsSource="{Binding TaskbarOverlayDevices}"
+            <ItemsControl x:Name="OverlayItems"
+                          ItemsSource="{Binding TaskbarOverlayDevices}"
                           Visibility="{Binding HasTaskbarOverlayDevices, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>

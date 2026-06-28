@@ -341,7 +341,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 
 ### 参考实现
 
-本轮参考 `SpLlry/SplusXBTMeter` 的任务栏窗口思路：独立任务栏窗口在加载时通过 Win32 API 挂载到任务栏父窗口，并在任务栏变化时重新嵌入和定位。本项目当前实现为 `TaskbarOverlayWindow`，使用 `FindWindow("Shell_TrayWnd")`、`SetParent`、`SetWindowLongPtr` 和 `SetWindowPos` 完成挂载。
+本轮参考 `SpLlry/SplusXBTMeter` 的任务栏窗口思路：独立任务栏窗口在加载时通过 Win32 API 挂载到任务栏父窗口，并在任务栏变化时重新嵌入和定位。本项目当前实现为 `TaskbarOverlayWindow`，使用 `FindWindow("Shell_TrayWnd")`、`FindWindowEx("TrayNotifyWnd")`、`SetParent`、`SetWindowLongPtr` 和 `SetWindowPos` 完成挂载，并读取 Windows 11 `TaskbarAl` 判断任务栏图标左对齐或居中对齐。
 
 ### 命令行调试方式
 
@@ -369,9 +369,10 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 问题 | 处理方式 |
 | --- | --- |
 | 任务栏没有看到 `BT` / `-` 占位 | 确认应用进程仍在运行；如果任务栏启用了自动隐藏、第三方任务栏工具或多显示器扩展任务栏，请先在主显示器、默认底部任务栏布局下验证 |
+| 启动时弹出“任务栏嵌入失败” | 表示未找到 `Shell_TrayWnd` 任务栏容器，可能是 Explorer 未启动、第三方任务栏替换工具或当前环境不是标准 Windows 桌面 |
 | 只看到托盘图标，看不到底部电量 | 当前底部展示是独立 `TaskbarOverlayWindow`，不是 NotifyIcon；请确认构建产物包含 `TaskbarOverlayWindow.xaml`，并重新运行 |
-| 勾选 Bottom 后没有设备显示 | 等待一次自动刷新；如果仍没有，请确认设备列表中 Bottom 复选框处于勾选状态 |
-| 位置靠近通知区域或应用图标 | 当前使用固定安全宽度避让右侧通知区域，尚不能精确读取每个任务栏图标位置；请记录任务栏位置、缩放比例和截图，后续继续调整 |
+| 勾选 Bottom 后没有设备显示 | 等待一次自动刷新；如果仍没有，请确认设备列表中 Bottom 复选框处于勾选状态；任务栏窗口会按已勾选数量动态调整宽度 |
+| 位置靠近通知区域或应用图标 | 当前参考 `TrayNotifyWnd` 和 `TaskbarAl` 计算位置，但仍不能精确读取每个任务栏应用按钮位置；请记录任务栏位置、对齐方式、缩放比例和截图，后续继续调整 |
 | 多显示器上位置不符合预期 | 当前第一版只挂载主任务栏；多显示器任务栏后续实现 |
 
 ### 当前验证状态
@@ -381,6 +382,6 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 任务栏嵌入窗口 | 已完成，待调试确认 | 新增 `TaskbarOverlayWindow`，通过 Win32 API 挂载到 `Shell_TrayWnd` |
 | Bottom 设备绑定 | 已完成，待调试确认 | 绑定 `ShowInTaskbarOverlay`，最多展示 4 个设备 |
 | 设备名与电量两行展示 | 已完成，待调试确认 | 第一行展示设备名，第二行展示电量百分比 |
-| 任务栏重新定位 | 部分完成，待调试确认 | 每 2 秒按主任务栏尺寸重新定位，并预留通知区域宽度 |
+| 任务栏重新定位 | 部分完成，待调试确认 | 每 2 秒按主任务栏尺寸重新定位，并在窗口位置变化消息后重新定位；会参考 `TrayNotifyWnd` 和 Windows 11 `TaskbarAl` |
 | 本机静态检查 | 已完成 | 已通过 XAML XML 检查；当前环境没有 `dotnet`，无法执行 Windows 构建和任务栏挂载验证 |
 | 用户 Windows 调试确认 | 待确认 | 需要用户在 Windows 10/11 实机验证 |
