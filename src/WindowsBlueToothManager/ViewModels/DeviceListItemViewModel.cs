@@ -104,7 +104,7 @@ public sealed class DeviceListItemViewModel : ObservableObject
         {
             if (!BatteryLevel.HasValue)
             {
-                return IsConnected
+                return IsConnected && !IsBatteryUnavailable
                     ? Translate("等待电量读取", "Waiting for battery reading")
                     : Translate("无法获取电量", "Battery unavailable");
             }
@@ -137,6 +137,11 @@ public sealed class DeviceListItemViewModel : ObservableObject
     }
 
     public string LastUpdatedText => LastUpdatedAt.ToString("HH:mm:ss");
+
+    private bool IsBatteryUnavailable => string.Equals(
+        StatusMessage,
+        "Battery unavailable",
+        StringComparison.OrdinalIgnoreCase);
 
     private string Translate(string chinese, string english)
     {

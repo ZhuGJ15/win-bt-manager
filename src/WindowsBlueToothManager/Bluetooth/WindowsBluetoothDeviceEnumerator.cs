@@ -1,3 +1,4 @@
+using Microsoft.Win32;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Windows.Devices.Enumeration;
@@ -14,6 +15,7 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
     private const string BatteryLevelProperty = "System.Devices.BatteryLevel";
     private const string BatteryPercentageProperty = "System.Devices.BatteryPercentage";
     private const string PowerLevelProperty = "System.Devices.PowerLevel";
+    private const string BluetoothDeviceRegistryPath = @"SYSTEM\CurrentControlSet\Services\BTHPORT\Parameters\Devices";
     private static readonly TimeSpan BatteryReadTimeout = TimeSpan.FromSeconds(3);
 
     private static readonly string[] EnumerationProperties =
@@ -154,9 +156,21 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
         }
 
         var propertyBatteryLevel = await ReadBatteryLevelFromPropertiesAsync(device, cancellationToken);
-        return propertyBatteryLevel.HasValue
-            ? BatteryReadResult.Success(propertyBatteryLevel.Value, "Battery read from Windows device properties")
-            : BatteryReadResult.Unavailable("Battery unavailable");
+        if (propertyBatteryLevel.HasValue)
+        {
+            return BatteryReadResult.Success(propertyBatteryLevel.Value, "Battery read from Windows device properties");
+        }
+
+        if (deviceType == DeviceType.ClassicBluetooth)
+        {
+            var registryBatteryLevel = await ReadClassicBluetoothRegistryBatteryLevelAsync(device.Id, cancellationToken);
+            if (registryBatteryLevel.HasValue)
+            {
+                return BatteryReadResult.Success(registryBatteryLevel.Value, "Battery read from Windows Bluetooth registry cache");
+            }
+        }
+
+        return BatteryReadResult.Unavailable("Battery unavailable");
     }
 
     private static async Task<int?> ReadBleBatteryLevelWithTimeoutAsync(
@@ -298,6 +312,114 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
         return null;
     }
 
+    private static async Task<int?> ReadClassicBluetoothRegistryBatteryLevelAsync(
+        string deviceId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var bluetoothDevice = await BluetoothDevice.FromIdAsync(deviceId);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (bluetoothDevice is null)
+            {
+                return null;
+            }
+
+            var address = bluetoothDevice.BluetoothAddress.ToString("x12");
+            return ReadClassicBluetoothRegistryBatteryLevel(address);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static int? ReadClassicBluetoothRegistryBatteryLevel(string bluetoothAddress)
+    {
+        if (string.IsNullOrWhiteSpace(bluetoothAddress))
+        {
+            return null;
+        }
+
+        var normalizedAddress = bluetoothAddress.Replace(":", string.Empty, StringComparison.Ordinal)
+            .Replace("-", string.Empty, StringComparison.Ordinal)
+            .ToLowerInvariant();
+
+        if (normalizedAddress.Length != 12)
+        {
+            return null;
+        }
+
+        using var devicesKey = Registry.LocalMachine.OpenSubKey(BluetoothDeviceRegistryPath);
+        using var deviceKey = devicesKey?.OpenSubKey(normalizedAddress)
+            ?? devicesKey?.OpenSubKey(normalizedAddress.ToUpperInvariant());
+
+        if (deviceKey is null)
+        {
+            return null;
+        }
+
+        return ReadBatteryLevelFromRegistryKey(deviceKey);
+    }
+
+    private static int? ReadBatteryLevelFromRegistryKey(RegistryKey registryKey)
+    {
+        var batteryLevel = ReadBatteryLevelFromRegistryValues(registryKey);
+        if (batteryLevel.HasValue)
+        {
+            return batteryLevel;
+        }
+
+        foreach (var subKeyName in registryKey.GetSubKeyNames())
+        {
+            using var subKey = registryKey.OpenSubKey(subKeyName);
+            if (subKey is null)
+            {
+                continue;
+            }
+
+            batteryLevel = ReadBatteryLevelFromRegistryValues(subKey);
+            if (batteryLevel.HasValue)
+            {
+                return batteryLevel;
+            }
+        }
+
+        return null;
+    }
+
+    private static int? ReadBatteryLevelFromRegistryValues(RegistryKey registryKey)
+    {
+        foreach (var valueName in registryKey.GetValueNames())
+        {
+            if (!IsBatteryValueName(valueName))
+            {
+                continue;
+            }
+
+            var batteryLevel = NormalizeBatteryLevel(registryKey.GetValue(valueName));
+            if (batteryLevel.HasValue)
+            {
+                return batteryLevel;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsBatteryValueName(string valueName)
+    {
+        return valueName.Contains("Battery", StringComparison.OrdinalIgnoreCase)
+            || valueName.Equals("PowerLevel", StringComparison.OrdinalIgnoreCase)
+            || valueName.Equals("Power Level", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static int? NormalizeBatteryLevel(object? value)
     {
         if (value is null)
@@ -319,6 +441,7 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
             double doubleValue when !double.IsNaN(doubleValue) && !double.IsInfinity(doubleValue) => (int)Math.Round(doubleValue),
             decimal decimalValue when decimalValue is >= int.MinValue and <= int.MaxValue => (int)Math.Round(decimalValue),
             string stringValue when int.TryParse(stringValue.TrimEnd('%'), out var parsedValue) => parsedValue,
+            byte[] byteArrayValue => NormalizeBatteryLevel(byteArrayValue),
             _ => (int?)null
         };
 
@@ -328,6 +451,17 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
         }
 
         return numericValue.Value;
+    }
+
+    private static int? NormalizeBatteryLevel(byte[] value)
+    {
+        return value.Length switch
+        {
+            0 => null,
+            1 => NormalizeBatteryLevel(value[0]),
+            >= 4 => NormalizeBatteryLevel(BitConverter.ToInt32(value, 0)),
+            _ => null
+        };
     }
 
     private sealed record BatteryReadResult(int? BatteryLevel, string StatusMessage)
