@@ -86,6 +86,8 @@ public sealed class DeviceListItemViewModel : ObservableObject
         ? Translate("已连接", "Connected")
         : Translate("已断开", "Disconnected");
 
+    public string ConnectionStatusBrush => IsConnected ? "#15803D" : "#94A3B8";
+
     public string BatteryText
     {
         get
@@ -100,6 +102,24 @@ public sealed class DeviceListItemViewModel : ObservableObject
     }
 
     public int BatteryProgressValue => BatteryLevel ?? 0;
+
+    public string BatteryProgressBrush
+    {
+        get
+        {
+            if (!BatteryLevel.HasValue)
+            {
+                return "#CBD5E1";
+            }
+
+            if (BatteryLevel.Value < 20)
+            {
+                return "#DC2626";
+            }
+
+            return BatteryLevel.Value < 50 ? "#EAB308" : "#16A34A";
+        }
+    }
 
     public string BatteryStateText
     {
@@ -155,8 +175,10 @@ public sealed class DeviceListItemViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(DeviceTypeText));
         OnPropertyChanged(nameof(ConnectionStatusText));
+        OnPropertyChanged(nameof(ConnectionStatusBrush));
         OnPropertyChanged(nameof(BatteryText));
         OnPropertyChanged(nameof(BatteryStateText));
+        OnPropertyChanged(nameof(BatteryProgressBrush));
         OnPropertyChanged(nameof(DisplayTargetText));
     }
 }

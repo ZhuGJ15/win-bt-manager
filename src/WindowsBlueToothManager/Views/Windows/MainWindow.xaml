@@ -228,10 +228,18 @@
                                                 Width="0.8*"
                                                 Binding="{Binding DeviceTypeText}"
                                                 IsReadOnly="True" />
-                            <DataGridTextColumn x:Name="StatusColumn"
-                                                Width="1*"
-                                                Binding="{Binding ConnectionStatusText}"
-                                                IsReadOnly="True" />
+                            <DataGridTemplateColumn x:Name="StatusColumn"
+                                                    Width="1*"
+                                                    IsReadOnly="True">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding ConnectionStatusText}"
+                                                   VerticalAlignment="Center"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{Binding ConnectionStatusBrush}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTemplateColumn x:Name="BatteryColumn"
                                                     Width="1.8*"
                                                     IsReadOnly="True">
@@ -240,14 +248,15 @@
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="58" />
+                                                <ColumnDefinition Width="50" />
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0"
                                                         VerticalAlignment="Center">
                                                 <ProgressBar Minimum="0"
                                                              Maximum="100"
                                                              Height="8"
-                                                             Value="{Binding BatteryProgressValue, Mode=OneWay}" />
+                                                             Value="{Binding BatteryProgressValue, Mode=OneWay}"
+                                                             Foreground="{Binding BatteryProgressBrush}" />
                                                 <TextBlock Margin="0,6,0,0"
                                                            Text="{Binding BatteryStateText}"
                                                            FontSize="12"
@@ -256,7 +265,8 @@
                                             <TextBlock Grid.Column="1"
                                                        Text="{Binding BatteryText}"
                                                        VerticalAlignment="Center"
-                                                       HorizontalAlignment="Right"
+                                                       HorizontalAlignment="Left"
+                                                       Margin="10,0,0,0"
                                                        FontWeight="SemiBold"
                                                        Foreground="#0F172A" />
                                         </Grid>
