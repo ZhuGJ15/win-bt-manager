@@ -1,4 +1,6 @@
 using Microsoft.Win32;
+using System.Runtime.InteropServices;
+using System.Text;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Windows.Devices.Enumeration;
@@ -21,6 +23,14 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
     private const string DeviceInstanceIdProperty = "System.Devices.DeviceInstanceId";
     private const string ContainerIdProperty = "System.Devices.ContainerId";
     private const string BluetoothDeviceRegistryPath = @"SYSTEM\CurrentControlSet\Services\BTHPORT\Parameters\Devices";
+    private const uint DigcfPresent = 0x00000002;
+    private const uint CrSuccess = 0x00000000;
+    private const uint SetupApiNoMoreItems = 259;
+    private const int InvalidHandleValue = -1;
+    private static readonly Guid SystemDeviceClassGuid = new("4d36e97d-e325-11ce-bfc1-08002be10318");
+    private static readonly DevPropKey BluetoothBatteryLevelPropertyKey = new(
+        new Guid("104EA319-6EE2-4701-BD47-8DDBF425BBE5"),
+        2);
     private static readonly TimeSpan BatteryReadTimeout = TimeSpan.FromSeconds(3);
 
     private static readonly string[] EnumerationProperties =
@@ -345,6 +355,14 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
 
         if (!string.IsNullOrWhiteSpace(address))
         {
+            var devNodeBatteryLevel = ReadClassicBluetoothDevNodeBatteryLevel(address);
+            if (devNodeBatteryLevel.HasValue)
+            {
+                return BatteryReadResult.Success(
+                    devNodeBatteryLevel.Value,
+                    "Battery read from Windows Bluetooth devnode property");
+            }
+
             var registryBatteryLevel = ReadClassicBluetoothRegistryBatteryLevel(address);
             if (registryBatteryLevel.HasValue)
             {
@@ -438,6 +456,121 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
         }
 
         return null;
+    }
+
+    private static int? ReadClassicBluetoothDevNodeBatteryLevel(string bluetoothAddress)
+    {
+        var normalizedAddress = NormalizeBluetoothAddress(bluetoothAddress);
+        if (normalizedAddress.Length != 12)
+        {
+            return null;
+        }
+
+        var infoSet = SetupDiGetClassDevs(
+            ref SystemDeviceClassGuid,
+            null,
+            IntPtr.Zero,
+            DigcfPresent);
+
+        if (infoSet == new IntPtr(InvalidHandleValue))
+        {
+            return null;
+        }
+
+        try
+        {
+            for (uint index = 0; ; index++)
+            {
+                var deviceInfoData = new SpDevInfoData
+                {
+                    CbSize = Marshal.SizeOf<SpDevInfoData>()
+                };
+
+                if (!SetupDiEnumDeviceInfo(infoSet, index, ref deviceInfoData))
+                {
+                    var error = Marshal.GetLastWin32Error();
+                    if (error == SetupApiNoMoreItems)
+                    {
+                        break;
+                    }
+
+                    continue;
+                }
+
+                var instanceId = GetDeviceInstanceId(infoSet, ref deviceInfoData);
+                if (!IsMatchingBluetoothDeviceInstance(instanceId, normalizedAddress))
+                {
+                    continue;
+                }
+
+                var batteryLevel = ReadDevNodeBatteryLevel(deviceInfoData.DevInst);
+                if (batteryLevel.HasValue)
+                {
+                    return batteryLevel;
+                }
+            }
+        }
+        finally
+        {
+            SetupDiDestroyDeviceInfoList(infoSet);
+        }
+
+        return null;
+    }
+
+    private static string? GetDeviceInstanceId(IntPtr infoSet, ref SpDevInfoData deviceInfoData)
+    {
+        var instanceId = new StringBuilder(512);
+        return SetupDiGetDeviceInstanceId(
+            infoSet,
+            ref deviceInfoData,
+            instanceId,
+            instanceId.Capacity,
+            out _)
+            ? instanceId.ToString()
+            : null;
+    }
+
+    private static bool IsMatchingBluetoothDeviceInstance(string? instanceId, string normalizedBluetoothAddress)
+    {
+        if (string.IsNullOrWhiteSpace(instanceId))
+        {
+            return false;
+        }
+
+        var normalizedInstanceId = NormalizeBluetoothAddress(instanceId);
+        return normalizedInstanceId.Contains(normalizedBluetoothAddress, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int? ReadDevNodeBatteryLevel(uint deviceInstance)
+    {
+        var bufferSize = 0u;
+        var propertyType = 0u;
+        var key = BluetoothBatteryLevelPropertyKey;
+        _ = CM_Get_DevNode_Property(
+            deviceInstance,
+            ref key,
+            out propertyType,
+            null,
+            ref bufferSize,
+            0);
+
+        if (bufferSize == 0)
+        {
+            return null;
+        }
+
+        var buffer = new byte[bufferSize];
+        key = BluetoothBatteryLevelPropertyKey;
+        var result = CM_Get_DevNode_Property(
+            deviceInstance,
+            ref key,
+            out propertyType,
+            buffer,
+            ref bufferSize,
+            0);
+
+        return result == CrSuccess ? NormalizeBatteryLevel(buffer) : null;
     }
 
     private static bool IsMatchingBluetoothPnpObject(
@@ -619,4 +752,63 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
             return new BatteryReadResult(null, statusMessage);
         }
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct DevPropKey
+    {
+        public DevPropKey(Guid fmtid, uint pid)
+        {
+            Fmtid = fmtid;
+            Pid = pid;
+        }
+
+        public Guid Fmtid;
+
+        public uint Pid;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct SpDevInfoData
+    {
+        public int CbSize;
+
+        public Guid ClassGuid;
+
+        public uint DevInst;
+
+        public IntPtr Reserved;
+    }
+
+    [DllImport("setupapi.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr SetupDiGetClassDevs(
+        ref Guid classGuid,
+        string? enumerator,
+        IntPtr hwndParent,
+        uint flags);
+
+    [DllImport("setupapi.dll", SetLastError = true)]
+    private static extern bool SetupDiEnumDeviceInfo(
+        IntPtr deviceInfoSet,
+        uint memberIndex,
+        ref SpDevInfoData deviceInfoData);
+
+    [DllImport("setupapi.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool SetupDiGetDeviceInstanceId(
+        IntPtr deviceInfoSet,
+        ref SpDevInfoData deviceInfoData,
+        StringBuilder deviceInstanceId,
+        int deviceInstanceIdSize,
+        out int requiredSize);
+
+    [DllImport("setupapi.dll", SetLastError = true)]
+    private static extern bool SetupDiDestroyDeviceInfoList(IntPtr deviceInfoSet);
+
+    [DllImport("cfgmgr32.dll", CharSet = CharSet.Unicode)]
+    private static extern uint CM_Get_DevNode_Property(
+        uint deviceInstance,
+        ref DevPropKey propertyKey,
+        out uint propertyType,
+        byte[]? propertyBuffer,
+        ref uint propertyBufferSize,
+        uint flags);
 }

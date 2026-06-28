@@ -147,7 +147,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 
 ### 目标
 
-验证应用可以通过 Windows 蓝牙 API 枚举 BLE 和经典蓝牙设备，并将真实设备显示到主界面列表中。BLE 电量读取已在功能 4 接入；BTC 电量读取仍未实现。
+验证应用可以通过 Windows 蓝牙 API 枚举 BLE 和经典蓝牙设备，并将真实设备显示到主界面列表中。BLE/BTC 电量读取已在功能 4 接入。
 
 ### 前置条件
 
@@ -208,7 +208,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 
 验证应用可以对已连接 BLE 设备读取标准 GATT Battery Service 中的 Battery Level 特征值，并对经典蓝牙 BTC 设备尝试读取 Windows 设备属性、蓝牙注册表缓存和 PnP 设备节点中暴露的电量百分比。
 
-BLE 电量读取相对标准化；BTC 电量读取高度依赖设备驱动和 Windows 是否暴露电量属性，因此当前阶段属于“尝试读取并等待真实设备兼容性确认”。
+BLE 电量读取相对标准化；BTC 电量读取高度依赖设备驱动和 Windows 是否暴露电量属性，因此当前阶段属于“尝试读取并等待真实设备兼容性确认”。针对 sanag 耳机，已参考 `SpLlry/SplusXBTMeter` 的 Windows SetupAPI/CfgMgr32 读取思路，补充 `BTHENUM` devnode 电量属性读取。
 
 ### 前置条件
 
@@ -234,7 +234,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | --- | --- |
 | BLE 电量成功读取 | 支持标准 Battery Service 的已连接 BLE 设备显示 `xx%` |
 | BLE 电量未读取到 | 已连接但不支持标准 Battery Service，或读取失败时显示 `待获取/Pending` |
-| BTC 电量成功读取 | Windows 设备属性、蓝牙注册表缓存或 PnP 设备节点暴露电量的经典蓝牙设备显示 `xx%` |
+| BTC 电量成功读取 | Windows 设备属性、蓝牙 devnode 属性、蓝牙注册表缓存或 PnP 设备节点暴露电量的经典蓝牙设备显示 `xx%` |
 | BTC 电量未读取到 | 已连接但 Windows 未暴露电量的 BTC 设备显示 `无法获取电量/Battery unavailable` |
 | 断开设备 | 断开设备显示 `-1` 和“无法获取电量/Battery unavailable” |
 | 自动刷新 | 设备连接状态或电量变化后，等待当前刷新频率周期，列表会自动刷新 |
@@ -249,8 +249,8 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | UI 显示“设备刷新失败：找不到元素”且列表空白 | 已将电量属性读取从全局枚举参数改为逐设备、逐属性尝试，并为基础设备枚举增加无属性降级；请重新构建运行，预期不再因单个属性不支持而清空设备列表 |
 | `CS0121 Math.Clamp(byte, byte, byte) 和 Math.Clamp(int, int, int) 调用具有二义性` | 已将 `DataReader.ReadByte()` 的返回值显式转换为 `int` 后再调用 `Math.Clamp` |
 | 读取时界面短暂显示刷新中 | BLE 电量读取有 3 秒单设备超时，这是为了避免单个设备卡住刷新 |
-| sanag 耳机没有电量 | 已补充 PnP 设备节点兜底读取；请重新构建运行并等待一次刷新，如果仍失败，请确认 Windows 设置页是否能显示 sanag 耳机电量 |
-| BTC 设备没有电量 | 当前已尝试读取 Windows 设备属性、`BTHPORT` 注册表缓存和 PnP 设备节点；如果仍没有电量，请记录设备型号和 Windows 蓝牙设置页是否显示电量 |
+| sanag 耳机没有电量 | 已参考 `SpLlry/SplusXBTMeter` 补充 SetupAPI/CfgMgr32 的 `BTHENUM` devnode 电量属性读取；请重新构建运行并等待一次刷新，如果仍失败，请确认 Windows 设置页是否能显示 sanag 耳机电量 |
+| BTC 设备没有电量 | 当前已尝试读取 Windows 设备属性、蓝牙 devnode 属性、`BTHPORT` 注册表缓存和 PnP 设备节点；如果仍没有电量，请记录设备型号和 Windows 蓝牙设置页是否显示电量 |
 
 ### 当前验证状态
 
@@ -259,6 +259,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | BLE GATT Battery Service 读取 | 已完成，待调试确认 | 使用 `GattServiceUuids.Battery` 和 `GattCharacteristicUuids.BatteryLevel` |
 | BLE 电量读取超时 | 已完成，待调试确认 | 单设备 3 秒超时 |
 | BTC 电量属性读取 | 已完成，待调试确认 | 尝试读取 Windows 设备属性 `System.Devices.BatteryLife`、`BatteryLevel`、`BatteryPercentage`、`PowerLevel` |
+| BTC devnode 读取 | 已完成，待调试确认 | 参考 `SpLlry/SplusXBTMeter` 思路，通过 SetupAPI 枚举 `BTHENUM` 设备节点，并通过 CfgMgr32 读取蓝牙电量 DEVPROPKEY |
 | BTC 注册表缓存读取 | 已完成，待调试确认 | 通过经典蓝牙地址尝试读取 `BTHPORT` 设备缓存中的 Battery/PowerLevel 值 |
 | BTC PnP 节点读取 | 已完成，待调试确认 | 通过蓝牙地址和设备名匹配 PnP AssociationEndpoint、DeviceContainer、Device 节点并读取电量属性 |
 | 本机静态检查 | 已完成 | 当前环境可做 XML/XAML 格式检查，但不能运行 Windows 蓝牙 API |
