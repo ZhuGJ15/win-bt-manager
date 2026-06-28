@@ -233,7 +233,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 检查项 | 预期结果 |
 | --- | --- |
 | BLE 电量成功读取 | 支持标准 Battery Service 的已连接 BLE 设备显示 `xx%` |
-| BLE 电量未读取到 | 已连接但不支持标准 Battery Service，或读取失败时显示 `待获取/Pending` |
+| BLE 电量未读取到 | 不支持标准 Battery Service，或 `Uncached -> Cached` 双路径都读取失败时显示 `无法获取电量/Battery unavailable` |
 | BTC 电量成功读取 | Windows 设备属性、蓝牙 devnode 属性、蓝牙注册表缓存或 PnP 设备节点暴露电量的经典蓝牙设备显示 `xx%` |
 | BTC 电量未读取到 | 已连接但 Windows 未暴露电量的 BTC 设备显示 `无法获取电量/Battery unavailable` |
 | 断开设备 | 断开设备显示 `-1` 和“无法获取电量/Battery unavailable” |
@@ -243,13 +243,15 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 
 | 问题 | 处理方式 |
 | --- | --- |
-| BLE 设备仍显示 `待获取/Pending` | 确认设备已连接，并确认该设备是否支持标准 GATT Battery Service |
+| BLE 设备仍显示 `待获取/Pending` | 等待一次自动刷新；如果刷新后变为 `无法获取电量`，表示本轮 BLE GATT 和 Windows 设备属性读取均未命中 |
+| BLE 设备显示已断开但实际已连接 | 已将 BLE 读取从连接状态判断中解耦；即使 `System.Devices.Aep.IsConnected` 不可靠，也会先尝试读取 BLE Battery Service |
 | BTC 设备仍显示 `待获取/Pending` | 等待一次自动刷新；如果刷新后变为 `无法获取电量`，表示本轮读取策略均未命中 |
 | Windows 设置里能看到电量，但应用显示无法获取电量 | 该设备可能通过厂商驱动或非标准接口暴露电量，需要后续补充 WMI 或厂商接口策略；请记录设备型号、Windows 设置页显示的电量、应用中的设备名称 |
 | UI 显示“设备刷新失败：找不到元素”且列表空白 | 已将电量属性读取从全局枚举参数改为逐设备、逐属性尝试，并为基础设备枚举增加无属性降级；请重新构建运行，预期不再因单个属性不支持而清空设备列表 |
 | `CS0121 Math.Clamp(byte, byte, byte) 和 Math.Clamp(int, int, int) 调用具有二义性` | 已将 `DataReader.ReadByte()` 的返回值显式转换为 `int` 后再调用 `Math.Clamp` |
 | `CS0199 无法将静态只读字段用作 ref 或 out 值` | 已将传给 `SetupDiGetClassDevs` 的设备类 GUID 改为方法内局部变量，再以 `ref` 传入 |
 | 读取时界面短暂显示刷新中 | BLE 电量读取有 3 秒单设备超时，这是为了避免单个设备卡住刷新 |
+| BLE 设备没有电量 | 当前已尝试 BLE GATT Battery Service 的 `Uncached -> Cached` 双路径和 Windows 设备属性；如果仍没有电量，请确认 Windows 设置页是否显示该 BLE 设备电量 |
 | sanag 耳机没有电量 | 已参考 `SpLlry/SplusXBTMeter` 补充 SetupAPI/CfgMgr32 的 `BTHENUM` devnode 电量属性读取；请重新构建运行并等待一次刷新，如果仍失败，请确认 Windows 设置页是否能显示 sanag 耳机电量 |
 | BTC 设备没有电量 | 当前已尝试读取 Windows 设备属性、蓝牙 devnode 属性、`BTHPORT` 注册表缓存和 PnP 设备节点；如果仍没有电量，请记录设备型号和 Windows 蓝牙设置页是否显示电量 |
 
@@ -257,7 +259,8 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 
 | 项目 | 状态 | 备注 |
 | --- | --- | --- |
-| BLE GATT Battery Service 读取 | 已完成，待调试确认 | 使用 `GattServiceUuids.Battery` 和 `GattCharacteristicUuids.BatteryLevel` |
+| BLE GATT Battery Service 读取 | 已完成，待调试确认 | 使用 `GattServiceUuids.Battery` 和 `GattCharacteristicUuids.BatteryLevel`，按 `Uncached -> Cached` 双路径读取 |
+| BLE 连接状态兼容 | 已完成，待调试确认 | BLE 电量读取不再因 `System.Devices.Aep.IsConnected` 缺失或误报 false 而直接跳过 |
 | BLE 电量读取超时 | 已完成，待调试确认 | 单设备 3 秒超时 |
 | BTC 电量属性读取 | 已完成，待调试确认 | 尝试读取 Windows 设备属性 `System.Devices.BatteryLife`、`BatteryLevel`、`BatteryPercentage`、`PowerLevel` |
 | BTC devnode 读取 | 已完成，待调试确认 | 参考 `SpLlry/SplusXBTMeter` 思路，通过 SetupAPI 枚举 `BTHENUM` 设备节点，并通过 CfgMgr32 读取蓝牙电量 DEVPROPKEY |

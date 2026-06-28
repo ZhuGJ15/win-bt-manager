@@ -121,8 +121,9 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
                     continue;
                 }
 
-                var isConnected = ReadBooleanProperty(device, IsConnectedProperty);
-                var batteryReadResult = await ReadBatteryLevelAsync(device, deviceType, isConnected, cancellationToken);
+                var connectionState = ReadBooleanProperty(device, IsConnectedProperty);
+                var batteryReadResult = await ReadBatteryLevelAsync(device, deviceType, connectionState, cancellationToken);
+                var isConnected = connectionState ?? batteryReadResult.BatteryLevel.HasValue;
 
                 devices[device.Id] = new BluetoothDeviceInfo
                 {
@@ -173,14 +174,9 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
     private static async Task<BatteryReadResult> ReadBatteryLevelAsync(
         DeviceInformation device,
         DeviceType deviceType,
-        bool isConnected,
+        bool? connectionState,
         CancellationToken cancellationToken)
     {
-        if (!isConnected)
-        {
-            return BatteryReadResult.Unavailable("Battery unavailable");
-        }
-
         if (deviceType == DeviceType.Ble)
         {
             var bleBatteryLevel = await ReadBleBatteryLevelWithTimeoutAsync(device.Id, cancellationToken);
@@ -188,6 +184,10 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
             {
                 return BatteryReadResult.Success(bleBatteryLevel.Value, "Battery read from BLE Battery Service");
             }
+        }
+        else if (connectionState == false)
+        {
+            return BatteryReadResult.Unavailable("Battery unavailable");
         }
 
         var propertyBatteryLevel = await ReadBatteryLevelFromPropertiesAsync(device, cancellationToken);
@@ -237,45 +237,16 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
                 return null;
             }
 
-            var servicesResult = await bluetoothDevice.GetGattServicesForUuidAsync(
-                GattServiceUuids.Battery,
-                BluetoothCacheMode.Uncached);
-
-            if (servicesResult.Status != GattCommunicationStatus.Success)
+            foreach (var cacheMode in new[] { BluetoothCacheMode.Uncached, BluetoothCacheMode.Cached })
             {
-                return null;
+                var batteryLevel = await ReadBleBatteryLevelAsync(bluetoothDevice, cacheMode);
+                if (batteryLevel.HasValue)
+                {
+                    return batteryLevel;
+                }
             }
 
-            var batteryService = servicesResult.Services.FirstOrDefault();
-            if (batteryService is null)
-            {
-                return null;
-            }
-
-            var characteristicsResult = await batteryService.GetCharacteristicsForUuidAsync(
-                GattCharacteristicUuids.BatteryLevel,
-                BluetoothCacheMode.Uncached);
-
-            if (characteristicsResult.Status != GattCommunicationStatus.Success)
-            {
-                return null;
-            }
-
-            var batteryLevelCharacteristic = characteristicsResult.Characteristics.FirstOrDefault();
-            if (batteryLevelCharacteristic is null)
-            {
-                return null;
-            }
-
-            var readResult = await batteryLevelCharacteristic.ReadValueAsync(BluetoothCacheMode.Uncached);
-            if (readResult.Status != GattCommunicationStatus.Success || readResult.Value.Length == 0)
-            {
-                return null;
-            }
-
-            var reader = DataReader.FromBuffer(readResult.Value);
-            var batteryLevel = (int)reader.ReadByte();
-            return Math.Clamp(batteryLevel, 0, 100);
+            return null;
         }
         catch
         {
@@ -283,11 +254,56 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
         }
     }
 
-    private static bool ReadBooleanProperty(DeviceInformation device, string propertyName)
+    private static async Task<int?> ReadBleBatteryLevelAsync(
+        BluetoothLEDevice bluetoothDevice,
+        BluetoothCacheMode cacheMode)
     {
-        return device.Properties.TryGetValue(propertyName, out var value)
-            && value is bool boolValue
-            && boolValue;
+        var servicesResult = await bluetoothDevice.GetGattServicesForUuidAsync(
+            GattServiceUuids.Battery,
+            cacheMode);
+
+        if (servicesResult.Status != GattCommunicationStatus.Success)
+        {
+            return null;
+        }
+
+        var batteryService = servicesResult.Services.FirstOrDefault();
+        if (batteryService is null)
+        {
+            return null;
+        }
+
+        var characteristicsResult = await batteryService.GetCharacteristicsForUuidAsync(
+            GattCharacteristicUuids.BatteryLevel,
+            cacheMode);
+
+        if (characteristicsResult.Status != GattCommunicationStatus.Success)
+        {
+            return null;
+        }
+
+        var batteryLevelCharacteristic = characteristicsResult.Characteristics.FirstOrDefault();
+        if (batteryLevelCharacteristic is null)
+        {
+            return null;
+        }
+
+        var readResult = await batteryLevelCharacteristic.ReadValueAsync(cacheMode);
+        if (readResult.Status != GattCommunicationStatus.Success || readResult.Value.Length == 0)
+        {
+            return null;
+        }
+
+        var reader = DataReader.FromBuffer(readResult.Value);
+        var batteryLevel = (int)reader.ReadByte();
+        return Math.Clamp(batteryLevel, 0, 100);
+    }
+
+    private static bool? ReadBooleanProperty(DeviceInformation device, string propertyName)
+    {
+        return device.Properties.TryGetValue(propertyName, out var value) && value is bool boolValue
+            ? boolValue
+            : null;
     }
 
     private static async Task<int?> ReadBatteryLevelFromPropertiesAsync(

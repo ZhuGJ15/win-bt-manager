@@ -92,7 +92,7 @@ public sealed class DeviceListItemViewModel : ObservableObject
                 return $"{BatteryLevel.Value}%";
             }
 
-            return IsConnected ? Translate("待获取", "Pending") : "-1";
+            return IsConnected && !IsBatteryUnavailable ? Translate("待获取", "Pending") : "-1";
         }
     }
 
