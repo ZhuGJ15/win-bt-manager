@@ -16,6 +16,7 @@ public partial class MainWindow : Window
     private readonly WinForms.ToolStripMenuItem _openMenuItem = new();
     private readonly WinForms.ToolStripMenuItem _refreshMenuItem = new();
     private readonly WinForms.ToolStripMenuItem _exitMenuItem = new();
+    private TaskbarOverlayWindow? _taskbarOverlayWindow;
     private bool _isExitRequested;
 
     public MainWindow()
@@ -26,6 +27,7 @@ public partial class MainWindow : Window
         _viewModel.Devices.CollectionChanged += OnDevicesCollectionChanged;
         _refreshTimer.Tick += OnRefreshTimerTick;
         InitializeTrayIcon();
+        InitializeTaskbarOverlayWindow();
         ApplyRefreshTimerInterval();
         _refreshTimer.Start();
         ApplyColumnHeaders();
@@ -50,6 +52,8 @@ public partial class MainWindow : Window
         _refreshTimer.Tick -= OnRefreshTimerTick;
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         _viewModel.Devices.CollectionChanged -= OnDevicesCollectionChanged;
+        _taskbarOverlayWindow?.Close();
+        _taskbarOverlayWindow = null;
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
         base.OnClosed(e);
@@ -146,6 +150,12 @@ public partial class MainWindow : Window
     {
         await _viewModel.RefreshDevicesAsync();
         UpdateTrayText();
+    }
+
+    private void InitializeTaskbarOverlayWindow()
+    {
+        _taskbarOverlayWindow = new TaskbarOverlayWindow(_viewModel);
+        _taskbarOverlayWindow.Show();
     }
 
     private void InitializeTrayIcon()

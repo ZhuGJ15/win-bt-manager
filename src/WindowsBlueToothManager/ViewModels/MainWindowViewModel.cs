@@ -166,6 +166,15 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public int OverlayDeviceCount => Devices.Count(device => device.ShowInTaskbarOverlay);
 
+    public IReadOnlyList<DeviceListItemViewModel> TaskbarOverlayDevices => Devices
+        .Where(device => device.ShowInTaskbarOverlay)
+        .Take(4)
+        .ToList();
+
+    public bool HasTaskbarOverlayDevices => TaskbarOverlayDevices.Count > 0;
+
+    public string TaskbarOverlayPlaceholderText => Translate("BT -", "BT -");
+
     public int LowBatteryDeviceCount => Devices.Count(device => device.BatteryLevel is < 20);
 
     public string SummaryText => CurrentLanguage == AppLanguage.Chinese
@@ -444,6 +453,8 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(ConnectedDeviceCount));
         OnPropertyChanged(nameof(OverlayDeviceCount));
+        OnPropertyChanged(nameof(TaskbarOverlayDevices));
+        OnPropertyChanged(nameof(HasTaskbarOverlayDevices));
         OnPropertyChanged(nameof(LowBatteryDeviceCount));
         OnPropertyChanged(nameof(SummaryText));
     }
@@ -476,6 +487,7 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(TrayHeaderText));
         OnPropertyChanged(nameof(DisplayHeaderText));
         OnPropertyChanged(nameof(UpdatedHeaderText));
+        OnPropertyChanged(nameof(TaskbarOverlayPlaceholderText));
     }
 
     private string Translate(string chinese, string english)
