@@ -358,6 +358,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | --- | --- |
 | 占位展示 | 应用启动后，任务栏底部区域出现两行小型占位 `BT` / `-`，说明任务栏窗口已挂载 |
 | Bottom 勾选 | 在主界面勾选某个设备的 Bottom 后，任务栏窗口以上下两行展示该设备名称和电量，例如上方 `my earphone`、下方 `78%` |
+| 无效设备限制 | 未连接、无法识别或未获取到电量的设备，Bottom 和 Tray 复选框应置灰，不能勾选 |
 | 多设备限制 | 勾选多个设备时，任务栏窗口最多展示 4 个设备，避免任务栏过度拥挤 |
 | 电量颜色 | 电量大于等于 50% 为绿色，低于 50% 为黄色，低于 20% 为红色 |
 | 自动刷新 | 设备电量刷新后，任务栏窗口内容同步更新 |
@@ -382,6 +383,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | --- | --- | --- |
 | 任务栏嵌入窗口 | 已完成，待调试确认 | 新增 `TaskbarOverlayWindow`，通过 Win32 API 挂载到 `Shell_TrayWnd` |
 | Bottom 设备绑定 | 已完成，待调试确认 | 绑定 `ShowInTaskbarOverlay`，最多展示 4 个设备 |
+| 无效设备禁用展示开关 | 已完成，待调试确认 | 未连接、未知类型或无电量数据的设备不能选择 Bottom/Tray，并会清理继承的旧展示偏好 |
 | 设备名与电量两行展示 | 已完成，待调试确认 | 第一行展示设备名，第二行展示电量百分比 |
 | 任务栏重新定位 | 部分完成，待调试确认 | 每 2 秒按主任务栏尺寸重新定位，并在窗口位置变化消息后重新定位；会参考 `TrayNotifyWnd` 和 Windows 11 `TaskbarAl` |
 | 本机静态检查 | 已完成 | 已通过 XAML XML 检查；当前环境没有 `dotnet`，无法执行 Windows 构建和任务栏挂载验证 |

@@ -274,12 +274,32 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridCheckBoxColumn x:Name="BottomColumn"
-                                                    Width="0.8*"
-                                                    Binding="{Binding ShowInTaskbarOverlay, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            <DataGridCheckBoxColumn x:Name="TrayColumn"
-                                                    Width="0.7*"
-                                                    Binding="{Binding ShowInTray, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                            <DataGridTemplateColumn x:Name="BottomColumn"
+                                                    Width="0.8*">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  IsChecked="{Binding ShowInTaskbarOverlay, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  IsEnabled="{Binding CanSelectDisplayTargets}"
+                                                  ToolTip="{Binding DisplaySelectionTooltip}"
+                                                  ToolTipService.ShowOnDisabled="True" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn x:Name="TrayColumn"
+                                                    Width="0.7*">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  IsChecked="{Binding ShowInTray, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  IsEnabled="{Binding CanSelectDisplayTargets}"
+                                                  ToolTip="{Binding DisplaySelectionTooltip}"
+                                                  ToolTipService.ShowOnDisabled="True" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTextColumn x:Name="DisplayColumn"
                                                 Width="1.1*"
                                                 Binding="{Binding DisplayTargetText}"

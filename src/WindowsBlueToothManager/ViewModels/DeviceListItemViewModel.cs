@@ -16,11 +16,11 @@ public sealed class DeviceListItemViewModel : ObservableObject
         DeviceType = device.DeviceType;
         IsConnected = device.IsConnected;
         BatteryLevel = device.BatteryLevel;
-        _showInTaskbarOverlay = device.ShowInTaskbarOverlay;
-        _showInTray = device.ShowInTray;
         LastUpdatedAt = device.LastUpdatedAt;
         StatusMessage = device.StatusMessage;
         _language = language;
+        _showInTaskbarOverlay = CanSelectDisplayTargets && device.ShowInTaskbarOverlay;
+        _showInTray = CanSelectDisplayTargets && device.ShowInTray;
     }
 
     public string DeviceId { get; }
@@ -56,7 +56,8 @@ public sealed class DeviceListItemViewModel : ObservableObject
         get => _showInTaskbarOverlay;
         set
         {
-            if (SetProperty(ref _showInTaskbarOverlay, value))
+            var normalizedValue = CanSelectDisplayTargets && value;
+            if (SetProperty(ref _showInTaskbarOverlay, normalizedValue))
             {
                 OnPropertyChanged(nameof(DisplayTargetText));
             }
@@ -68,10 +69,39 @@ public sealed class DeviceListItemViewModel : ObservableObject
         get => _showInTray;
         set
         {
-            if (SetProperty(ref _showInTray, value))
+            var normalizedValue = CanSelectDisplayTargets && value;
+            if (SetProperty(ref _showInTray, normalizedValue))
             {
                 OnPropertyChanged(nameof(DisplayTargetText));
             }
+        }
+    }
+
+    public bool CanSelectDisplayTargets =>
+        IsConnected
+        && DeviceType != DeviceType.Unknown
+        && BatteryLevel.HasValue;
+
+    public string DisplaySelectionTooltip
+    {
+        get
+        {
+            if (CanSelectDisplayTargets)
+            {
+                return Translate("可显示在托盘或底部", "Can be shown in tray or bottom area");
+            }
+
+            if (!IsConnected)
+            {
+                return Translate("未连接设备不能显示在托盘或底部", "Disconnected devices cannot be shown in tray or bottom area");
+            }
+
+            if (DeviceType == DeviceType.Unknown)
+            {
+                return Translate("无法识别的设备不能显示在托盘或底部", "Unrecognized devices cannot be shown in tray or bottom area");
+            }
+
+            return Translate("未获取到电量的设备不能显示在托盘或底部", "Devices without battery data cannot be shown in tray or bottom area");
         }
     }
 
@@ -180,5 +210,6 @@ public sealed class DeviceListItemViewModel : ObservableObject
         OnPropertyChanged(nameof(BatteryStateText));
         OnPropertyChanged(nameof(BatteryProgressBrush));
         OnPropertyChanged(nameof(DisplayTargetText));
+        OnPropertyChanged(nameof(DisplaySelectionTooltip));
     }
 }
