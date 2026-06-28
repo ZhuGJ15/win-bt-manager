@@ -173,7 +173,7 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public bool HasTaskbarOverlayDevices => TaskbarOverlayDevices.Count > 0;
 
-    public string TaskbarOverlayPlaceholderText => Translate("BT -", "BT -");
+    public string TaskbarOverlayPlaceholderText => Translate("BT\n-", "BT\n-");
 
     public int LowBatteryDeviceCount => Devices.Count(device => device.BatteryLevel is < 20);
 

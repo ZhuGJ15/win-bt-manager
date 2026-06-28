@@ -21,6 +21,7 @@ public partial class TaskbarOverlayWindow : Window
     private const int HorizontalTaskbarReservedWidth = 360;
     private const int VerticalTaskbarReservedHeight = 160;
 
+    private readonly MainWindowViewModel _viewModel;
     private readonly DispatcherTimer _positionTimer = new();
     private IntPtr _windowHandle;
     private IntPtr _taskbarHandle;
@@ -28,6 +29,7 @@ public partial class TaskbarOverlayWindow : Window
     public TaskbarOverlayWindow(MainWindowViewModel viewModel)
     {
         InitializeComponent();
+        _viewModel = viewModel;
         DataContext = viewModel;
         SourceInitialized += OnSourceInitialized;
         Loaded += OnLoaded;
@@ -93,8 +95,11 @@ public partial class TaskbarOverlayWindow : Window
 
         if (isHorizontal)
         {
-            var width = Math.Min(280, Math.Max(180, taskbarWidth / 4));
-            var height = Math.Min(42, Math.Max(32, taskbarHeight - 2));
+            var displayDeviceCount = Math.Clamp(_viewModel.TaskbarOverlayDevices.Count, 1, 4);
+            var desiredWidth = Math.Clamp(displayDeviceCount * 112, 120, 448);
+            var availableWidth = Math.Max(120, taskbarWidth - HorizontalTaskbarReservedWidth);
+            var width = Math.Min(desiredWidth, availableWidth);
+            var height = Math.Min(46, Math.Max(38, taskbarHeight - 2));
             var x = Math.Max(0, taskbarWidth - width - HorizontalTaskbarReservedWidth);
             var y = Math.Max(0, (taskbarHeight - height) / 2);
             Width = width;
