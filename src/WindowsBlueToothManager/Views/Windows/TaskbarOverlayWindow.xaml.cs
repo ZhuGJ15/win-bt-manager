@@ -263,7 +263,7 @@ public partial class TaskbarOverlayWindow : Window
             Width = DeviceTileWidth - 8,
             FontSize = 8,
             FontWeight = FontWeights.SemiBold,
-            Foreground = Brushes.WhiteSmoke,
+            Foreground = System.Windows.Media.Brushes.WhiteSmoke,
             TextAlignment = TextAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
             ClipToBounds = true
@@ -302,9 +302,9 @@ public partial class TaskbarOverlayWindow : Window
         };
     }
 
-    private static Brush ToBrush(string color)
+    private static System.Windows.Media.Brush ToBrush(string color)
     {
-        return (Brush)new BrushConverter().ConvertFromString(color)!;
+        return (System.Windows.Media.Brush)new BrushConverter().ConvertFromString(color)!;
     }
 
     private Rect GetTaskbarTargetRect(int alignment)
