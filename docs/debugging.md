@@ -110,7 +110,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 电量展示 | 有百分比、进度条、低电量提示和 Unknown 电量 |
 | 展示开关 | 勾选或取消 Bottom/Tray 后，统计值和 Display 列会更新 |
 | 手动刷新 | 点击 `Refresh` 后更新时间变化，部分模拟电量会小幅变化 |
-| 中英文切换 | 在顶部语言下拉框中切换 `中文` 和 `English` 后，按钮、统计卡片、表格列名、状态文案、底部提示和设备状态会切换语言 |
+| 中英文切换 | 在顶部菜单栏打开 `设置/Settings` -> `语言/Language`，切换 `中文` 和 `English` 后，按钮、统计卡片、表格列名、状态文案、底部提示和设备状态会切换语言 |
 
 ### 常见问题排查
 
@@ -131,6 +131,6 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 文件结构检查 | 已完成 | 已新增模型和 ViewModel，主窗口已绑定模拟数据 |
 | 启动异常可见化 | 已完成 | 已改为代码显式创建主窗口，并为启动失败增加错误弹窗 |
 | BatteryProgressValue 绑定修复 | 已完成 | 已将电量进度条只读属性绑定修正为单向绑定 |
-| 中英文切换 | 已完成 | 已增加语言下拉框，界面文案可在中文和英文之间切换 |
+| 中英文切换 | 已完成 | 已增加顶部菜单栏，并将语言切换放到 `设置/Settings` 菜单下 |
 | 本机静态检查 | 已完成 | 当前环境可做 XML/XAML 格式检查，但不能运行 WPF |
 | 用户 Windows 调试确认 | 待确认 | 需要用户按本文档在 Windows 10/11 上验证 |

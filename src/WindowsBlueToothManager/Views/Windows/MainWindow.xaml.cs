@@ -1,5 +1,6 @@
 using System.Windows;
 using System.ComponentModel;
+using WindowsBlueToothManager.Models;
 using WindowsBlueToothManager.ViewModels;
 
 namespace WindowsBlueToothManager.Views.Windows;
@@ -19,6 +20,16 @@ public partial class MainWindow : Window
     private void RefreshButton_Click(object sender, RoutedEventArgs e)
     {
         _viewModel.RefreshDevices();
+    }
+
+    private void ChineseLanguageMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SetLanguage(AppLanguage.Chinese);
+    }
+
+    private void EnglishLanguageMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SetLanguage(AppLanguage.English);
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)

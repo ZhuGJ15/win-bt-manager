@@ -81,6 +81,18 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public string LanguageLabelText => Translate("语言", "Language");
 
+    public string SettingsMenuText => Translate("设置", "Settings");
+
+    public string LanguageMenuText => Translate("语言", "Language");
+
+    public string ChineseLanguageText => "中文";
+
+    public string EnglishLanguageText => "English";
+
+    public bool IsChineseLanguageSelected => CurrentLanguage == AppLanguage.Chinese;
+
+    public bool IsEnglishLanguageSelected => CurrentLanguage == AppLanguage.English;
+
     public string RefreshButtonText => Translate("刷新", "Refresh");
 
     public string ConnectedLabelText => Translate("已连接", "Connected");
@@ -132,6 +144,18 @@ public sealed class MainWindowViewModel : ObservableObject
 
         LastRefreshAt = now;
         NotifySummaryChanged();
+    }
+
+    public void SetLanguage(AppLanguage language)
+    {
+        var languageOption = LanguageOptions.First(option => option.Language == language);
+        if (SelectedLanguageOption.Language == language)
+        {
+            NotifyLocalizedTextChanged();
+            return;
+        }
+
+        SelectedLanguageOption = languageOption;
     }
 
     private IReadOnlyList<BluetoothDeviceInfo> CreateSampleDevices(DateTime now)
@@ -212,6 +236,12 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(LastRefreshText));
         OnPropertyChanged(nameof(StatusText));
         OnPropertyChanged(nameof(LanguageLabelText));
+        OnPropertyChanged(nameof(SettingsMenuText));
+        OnPropertyChanged(nameof(LanguageMenuText));
+        OnPropertyChanged(nameof(ChineseLanguageText));
+        OnPropertyChanged(nameof(EnglishLanguageText));
+        OnPropertyChanged(nameof(IsChineseLanguageSelected));
+        OnPropertyChanged(nameof(IsEnglishLanguageSelected));
         OnPropertyChanged(nameof(RefreshButtonText));
         OnPropertyChanged(nameof(ConnectedLabelText));
         OnPropertyChanged(nameof(ShownAtBottomLabelText));
