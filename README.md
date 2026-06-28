@@ -1,0 +1,175 @@
+# WindowsBlueToothManager
+
+[中文](#中文) | [English](#english)
+
+---
+
+## 中文
+
+WindowsBlueToothManager 是一个面向 Windows 10 和 Windows 11 的蓝牙设备电量管理工具，目标是让用户无需反复进入系统设置，就能在桌面、系统托盘或任务栏附近快速查看蓝牙设备连接状态和电量。
+
+> 当前项目处于设计与工程初始化阶段，核心功能尚未实现。
+
+### 项目目标
+
+- 支持 BLE 低功耗蓝牙设备和 BTC 经典蓝牙设备。
+- 每 5 秒自动扫描蓝牙设备状态。
+- 展示所有已连接蓝牙设备的连接状态和电量。
+- 支持系统托盘常驻展示。
+- 支持任务栏附近的贴边电量展示，便于不打开主界面也能查看电量。
+- 支持按设备控制是否显示在底部展示区域。
+- 支持低电量提醒，默认阈值为 20%。
+- 支持扫描失败、电量读取失败等异常的详细日志记录。
+- 支持桌面右上角错误提示弹窗，并在 10 秒后自动消失。
+
+### 技术栈
+
+| 类型 | 选型 |
+| --- | --- |
+| 开发语言 | C# |
+| UI 框架 | WPF |
+| 运行时 | .NET 8，必要时可兼容 .NET 6 |
+| 目标系统 | Windows 10、Windows 11 |
+| 蓝牙 API | Windows.Devices.Bluetooth、Windows.Devices.Enumeration、Windows Runtime API |
+| 日志 | Microsoft.Extensions.Logging、Serilog |
+| 配置存储 | JSON 配置文件 |
+
+### 功能规划
+
+| 功能 | 状态 | 说明 |
+| --- | --- | --- |
+| 中文 README | 已完成 | 当前文件 |
+| 英文 README | 已完成 | 当前文件内置英文版本 |
+| 系统设计文档 | 已完成 | 见 `docs/system-design-and-implementation.md` |
+| Git 忽略规则 | 已完成 | 已添加 `.gitignore`，排除构建产物、IDE 缓存、日志和本地配置 |
+| WPF 工程骨架 | 未完成 | 下一阶段创建解决方案与项目结构 |
+| 蓝牙设备扫描 | 未完成 | 枚举 BLE/BTC 设备并读取连接状态 |
+| 蓝牙电量读取 | 未完成 | BLE 优先读取标准 GATT Battery Service，BTC 使用多策略兼容 |
+| 主界面 | 未完成 | 展示设备列表、连接状态、电量、展示开关 |
+| 系统托盘 | 未完成 | 展示应用状态、电量摘要和快捷菜单 |
+| 任务栏贴边展示 | 未完成 | 在任务栏附近展示用户选择的设备电量 |
+| 低电量告警 | 未完成 | 电量低于 20% 时提醒 |
+| 异常日志与弹窗 | 未完成 | 记录详细日志并展示 10 秒错误提示 |
+
+### 任务栏展示说明
+
+Windows 普通桌面应用不适合直接向系统任务栏内部注入多个动态图标。为了兼顾 Windows 10/11 兼容性、DPI 缩放、窗口避让和稳定性，本项目计划采用：
+
+- 系统托盘图标：展示整体状态、最低电量或低电量数量。
+- 任务栏贴边电量条：使用轻量桌面悬浮窗贴近任务栏区域展示设备电量。
+
+这种方式可以满足“无需打开主界面即可查看电量”的需求，同时降低遮挡、穿模和系统更新后失效的风险。
+
+### 文档
+
+- [系统设计与实现文档](docs/system-design-and-implementation.md)
+
+### 计划目录结构
+
+```text
+WindowsBlueToothManager/
+├── README.md
+├── docs/
+│   └── system-design-and-implementation.md
+├── src/
+│   └── WindowsBlueToothManager/
+├── tests/
+│   └── WindowsBlueToothManager.Tests/
+└── tools/
+```
+
+### 后续开发计划
+
+1. 创建 C# WPF 解决方案和项目骨架。
+2. 实现配置、日志、依赖注入和应用生命周期管理。
+3. 使用模拟数据实现主界面、托盘和贴边展示。
+4. 接入 Windows 蓝牙设备枚举能力。
+5. 实现 BLE/BTC 电量读取策略。
+6. 实现低电量提醒、异常弹窗和滚动日志。
+7. 在 Windows 10 和 Windows 11 上进行真实设备测试。
+
+---
+
+## English
+
+WindowsBlueToothManager is a Bluetooth battery monitoring tool for Windows 10 and Windows 11. It is designed to make Bluetooth device battery levels and connection status easier to access without repeatedly opening Windows Settings.
+
+> The project is currently in the design and initialization stage. Core features have not been implemented yet.
+
+### Goals
+
+- Support BLE devices and BTC classic Bluetooth devices.
+- Scan Bluetooth device status automatically every 5 seconds.
+- Show all connected Bluetooth devices with connection status and battery level.
+- Provide a persistent system tray entry.
+- Provide a taskbar-adjacent battery overlay so users can check battery levels without opening the main window.
+- Allow users to choose which devices are shown in the bottom overlay area.
+- Show low-battery warnings with a default threshold of 20%.
+- Record detailed logs for scan failures, battery read failures, and other runtime errors.
+- Show a small error popup in the upper-right corner of the desktop, automatically dismissed after 10 seconds.
+
+### Tech Stack
+
+| Type | Choice |
+| --- | --- |
+| Language | C# |
+| UI Framework | WPF |
+| Runtime | .NET 8, with possible .NET 6 compatibility if needed |
+| Target OS | Windows 10, Windows 11 |
+| Bluetooth APIs | Windows.Devices.Bluetooth, Windows.Devices.Enumeration, Windows Runtime API |
+| Logging | Microsoft.Extensions.Logging, Serilog |
+| Configuration | JSON configuration files |
+
+### Feature Roadmap
+
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Chinese README | Done | This file |
+| English README | Done | Included in this file |
+| System design document | Done | See `docs/system-design-and-implementation.md` |
+| Git ignore rules | Done | Added `.gitignore` for build output, IDE caches, logs, and local settings |
+| WPF project skeleton | Not started | Solution and project structure will be created next |
+| Bluetooth device scanning | Not started | Enumerate BLE/BTC devices and read connection status |
+| Bluetooth battery reading | Not started | BLE via standard GATT Battery Service; BTC via multiple compatibility strategies |
+| Main UI | Not started | Device list, connection status, battery level, display toggles |
+| System tray | Not started | App status, battery summary, quick actions |
+| Taskbar-adjacent overlay | Not started | Show selected device battery levels near the taskbar |
+| Low-battery alerts | Not started | Warn when battery level is below 20% |
+| Error logging and popup | Not started | Detailed logs plus 10-second error notification |
+
+### Taskbar Display Notes
+
+Standard Windows desktop apps should not inject multiple dynamic custom icons directly into the internal taskbar area. To keep the app stable across Windows 10/11, DPI scaling modes, taskbar layouts, and future system updates, this project plans to use:
+
+- A system tray icon for overall status, lowest battery level, or low-battery count.
+- A lightweight taskbar-adjacent overlay window for selected device battery levels.
+
+This approach keeps battery information visible without opening the main UI while reducing the risk of overlap, rendering glitches, and OS compatibility issues.
+
+### Documentation
+
+- [System Design and Implementation Document](docs/system-design-and-implementation.md)
+
+### Planned Directory Structure
+
+```text
+WindowsBlueToothManager/
+├── README.md
+├── docs/
+│   └── system-design-and-implementation.md
+├── src/
+│   └── WindowsBlueToothManager/
+├── tests/
+│   └── WindowsBlueToothManager.Tests/
+└── tools/
+```
+
+### Development Plan
+
+1. Create the C# WPF solution and project skeleton.
+2. Implement configuration, logging, dependency injection, and app lifecycle management.
+3. Build the main UI, tray entry, and overlay using simulated device data.
+4. Integrate Windows Bluetooth device enumeration.
+5. Implement BLE/BTC battery reading strategies.
+6. Implement low-battery alerts, error popups, and rolling logs.
+7. Test with real devices on Windows 10 and Windows 11.

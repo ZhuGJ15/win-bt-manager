@@ -1,0 +1,107 @@
+# Build output
+bin/
+obj/
+out/
+publish/
+artifacts/
+TestResults/
+coverage/
+coverage-*/
+
+# .NET generated files
+*.dll
+*.exe
+*.pdb
+*.mdb
+*.app
+*.deps.json
+*.runtimeconfig.json
+*.runtimeconfig.dev.json
+*.nupkg
+*.snupkg
+*.symbols.nupkg
+project.lock.json
+project.assets.json
+*.nuget.props
+*.nuget.targets
+
+# Visual Studio
+.vs/
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+*.rsuser
+*.vcxproj.user
+*.csproj.user
+*.dbmdl
+*.jfm
+*.cache
+*.ilk
+*.iobj
+*.ipdb
+*.tlog
+*.lastbuildstate
+
+# Rider / ReSharper
+.idea/
+_ReSharper*/
+*.DotSettings.user
+
+# VS Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+!.vscode/launch.example.json
+!.vscode/tasks.example.json
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+nuget.config.local
+
+# Logs and diagnostics
+logs/
+*.log
+*.dmp
+*.mdmp
+*.trace
+*.etl
+*.tmp
+*.temp
+
+# Local application data and settings
+appsettings.Development.json
+appsettings.Local.json
+settings.local.json
+*.local.json
+*.secrets.json
+.env
+.env.*
+!.env.example
+
+# Windows installer and packaging output
+*.msi
+*.msix
+*.msixbundle
+*.appx
+*.appxbundle
+*.wixpdb
+*.cab
+
+# Windows, macOS, and Linux filesystem noise
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+*.swp
+*.swo
+*~
+
