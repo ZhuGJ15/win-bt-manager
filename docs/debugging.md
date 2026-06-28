@@ -147,7 +147,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 
 ### 目标
 
-验证应用可以通过 Windows 蓝牙 API 枚举 BLE 和经典蓝牙设备，并将真实设备显示到主界面列表中。当前功能只负责设备枚举和连接状态读取，电量读取仍会显示为未知。
+验证应用可以通过 Windows 蓝牙 API 枚举 BLE 和经典蓝牙设备，并将真实设备显示到主界面列表中。BLE 电量读取已在功能 4 接入；BTC 电量读取仍未实现。
 
 ### 前置条件
 
@@ -176,7 +176,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 真实设备列表 | Windows 蓝牙数据源下，列表显示系统枚举到的蓝牙设备 |
 | 设备类型 | BLE 设备显示为 `BLE`，经典蓝牙设备显示为 `BTC` |
 | 连接状态 | 如果设备/驱动暴露连接状态，列表显示 Connected/已连接 或 Disconnected/已断开 |
-| 电量列 | 已断开设备显示 `-1`，状态文案显示“无法获取电量/Battery unavailable”；已连接但暂未读取电量时显示“待获取/Pending”，这是当前未接入电量读取前的预期结果 |
+| 电量列 | 支持标准 Battery Service 的已连接 BLE 设备可显示百分比；其他暂未读取到电量的已连接设备显示“待获取/Pending”；已断开设备显示 `-1` |
 | 模拟数据回退 | 切换到 `模拟数据/Simulated data` 后，列表回到 4 条模拟设备 |
 | 自动刷新 | 按设置中的刷新频率自动重新枚举真实设备 |
 
@@ -201,3 +201,58 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | UI 数据源切换 | 已完成，待调试确认 | 可在设置菜单切换 Windows 蓝牙和模拟数据 |
 | 本机静态检查 | 已完成 | 当前环境可做 XML/XAML 格式检查，但不能运行 Windows 蓝牙 API |
 | 用户 Windows 调试确认 | 待确认 | 需要用户按本文档在 Windows 10/11 上验证 |
+
+## 功能 4：BLE 电量读取
+
+### 目标
+
+验证应用可以对已连接 BLE 设备读取标准 GATT Battery Service 中的 Battery Level 特征值，并在 UI 中显示百分比电量。
+
+当前功能只覆盖 BLE 标准电量读取。经典蓝牙 BTC 设备电量读取仍未实现。
+
+### 前置条件
+
+| 条件 | 说明 |
+| --- | --- |
+| 操作系统 | Windows 10 或 Windows 11 |
+| SDK | .NET 8 SDK |
+| 蓝牙状态 | Windows 蓝牙已开启 |
+| 设备条件 | 至少有一个已连接 BLE 设备，且设备支持标准 Battery Service |
+
+### 命令行调试方式
+
+在项目根目录执行：
+
+```powershell
+dotnet build WindowsBlueToothManager.sln
+dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
+```
+
+### 预期结果
+
+| 检查项 | 预期结果 |
+| --- | --- |
+| BLE 电量成功读取 | 支持标准 Battery Service 的已连接 BLE 设备显示 `xx%` |
+| BLE 电量未读取到 | 已连接但不支持标准 Battery Service，或读取失败时显示 `待获取/Pending` |
+| 断开设备 | 断开设备显示 `-1` 和“无法获取电量/Battery unavailable” |
+| BTC 设备 | BTC 设备暂时仍显示 `待获取/Pending` 或 `-1`，这是当前阶段预期 |
+| 自动刷新 | 设备连接状态或电量变化后，等待当前刷新频率周期，列表会自动刷新 |
+
+### 常见问题排查
+
+| 问题 | 处理方式 |
+| --- | --- |
+| BLE 设备仍显示 `待获取/Pending` | 确认设备已连接，并确认该设备是否支持标准 GATT Battery Service |
+| Windows 设置里能看到电量，但应用显示待获取 | 该设备可能通过厂商驱动或非标准接口暴露电量，需要后续多策略读取适配 |
+| 读取时界面短暂显示刷新中 | BLE 电量读取有 3 秒单设备超时，这是为了避免单个设备卡住刷新 |
+| BTC 设备没有电量 | 当前功能未实现 BTC 电量读取，后续会单独处理 |
+
+### 当前验证状态
+
+| 项目 | 状态 | 备注 |
+| --- | --- | --- |
+| BLE GATT Battery Service 读取 | 已完成，待调试确认 | 使用 `GattServiceUuids.Battery` 和 `GattCharacteristicUuids.BatteryLevel` |
+| BLE 电量读取超时 | 已完成，待调试确认 | 单设备 3 秒超时 |
+| BTC 电量读取 | 未完成 | 后续功能实现 |
+| 本机静态检查 | 已完成 | 当前环境可做 XML/XAML 格式检查，但不能运行 Windows 蓝牙 API |
+| 用户 Windows 调试确认 | 待确认 | 需要用户使用真实 BLE 设备验证 |
