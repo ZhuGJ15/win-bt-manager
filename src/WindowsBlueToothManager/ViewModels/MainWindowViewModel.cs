@@ -233,8 +233,8 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public string FooterText => SelectedDataSourceMode == DeviceDataSourceMode.WindowsBluetooth
         ? Translate(
-            "Windows 蓝牙模式。当前可枚举设备、读取连接状态，并尝试读取 BLE 标准电量；BTC 电量读取将在后续功能接入。",
-            "Windows Bluetooth mode. Device list, connection status, and standard BLE battery reading are available now; BTC battery reading will be connected later.")
+            "Windows 蓝牙模式。当前可枚举设备、读取连接状态，并尝试读取 BLE 标准电量和 Windows 暴露的 BTC 电量属性。",
+            "Windows Bluetooth mode. Device list, connection status, standard BLE battery reading, and Windows-exposed BTC battery properties are available now.")
         : Translate(
             "模拟数据模式。真实蓝牙扫描可在设置菜单中切回 Windows 蓝牙数据源。",
             "Simulated data mode. Switch back to Windows Bluetooth from the settings menu for real device enumeration.");

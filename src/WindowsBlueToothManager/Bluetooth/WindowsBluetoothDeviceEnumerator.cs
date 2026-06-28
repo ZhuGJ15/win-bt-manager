@@ -10,11 +10,19 @@ namespace WindowsBlueToothManager.Bluetooth;
 public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerator
 {
     private const string IsConnectedProperty = "System.Devices.Aep.IsConnected";
+    private const string BatteryLifeProperty = "System.Devices.BatteryLife";
+    private const string BatteryLevelProperty = "System.Devices.BatteryLevel";
+    private const string BatteryPercentageProperty = "System.Devices.BatteryPercentage";
+    private const string PowerLevelProperty = "System.Devices.PowerLevel";
     private static readonly TimeSpan BatteryReadTimeout = TimeSpan.FromSeconds(3);
 
     private static readonly string[] RequestedProperties =
     {
-        IsConnectedProperty
+        IsConnectedProperty,
+        BatteryLifeProperty,
+        BatteryLevelProperty,
+        BatteryPercentageProperty,
+        PowerLevelProperty
     };
 
     public async Task<IReadOnlyList<BluetoothDeviceInfo>> EnumerateAsync(CancellationToken cancellationToken)
@@ -61,9 +69,7 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
             }
 
             var isConnected = ReadBooleanProperty(device, IsConnectedProperty);
-            var batteryLevel = isConnected && deviceType == DeviceType.Ble
-                ? await ReadBleBatteryLevelWithTimeoutAsync(device.Id, cancellationToken)
-                : null;
+            var batteryReadResult = await ReadBatteryLevelAsync(device, deviceType, isConnected, cancellationToken);
 
             devices[device.Id] = new BluetoothDeviceInfo
             {
@@ -71,15 +77,39 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
                 Name = string.IsNullOrWhiteSpace(device.Name) ? "Unknown Bluetooth Device" : device.Name,
                 DeviceType = deviceType,
                 IsConnected = isConnected,
-                BatteryLevel = batteryLevel,
+                BatteryLevel = batteryReadResult.BatteryLevel,
                 ShowInTaskbarOverlay = false,
                 ShowInTray = false,
                 LastUpdatedAt = now,
-                StatusMessage = batteryLevel.HasValue
-                    ? "Battery read from BLE Battery Service"
-                    : "Battery unavailable"
+                StatusMessage = batteryReadResult.StatusMessage
             };
         }
+    }
+
+    private static async Task<BatteryReadResult> ReadBatteryLevelAsync(
+        DeviceInformation device,
+        DeviceType deviceType,
+        bool isConnected,
+        CancellationToken cancellationToken)
+    {
+        if (!isConnected)
+        {
+            return BatteryReadResult.Unavailable("Battery unavailable");
+        }
+
+        if (deviceType == DeviceType.Ble)
+        {
+            var bleBatteryLevel = await ReadBleBatteryLevelWithTimeoutAsync(device.Id, cancellationToken);
+            if (bleBatteryLevel.HasValue)
+            {
+                return BatteryReadResult.Success(bleBatteryLevel.Value, "Battery read from BLE Battery Service");
+            }
+        }
+
+        var propertyBatteryLevel = ReadBatteryLevelFromProperties(device);
+        return propertyBatteryLevel.HasValue
+            ? BatteryReadResult.Success(propertyBatteryLevel.Value, "Battery read from Windows device properties")
+            : BatteryReadResult.Unavailable("Battery unavailable");
     }
 
     private static async Task<int?> ReadBleBatteryLevelWithTimeoutAsync(
@@ -162,5 +192,69 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
         return device.Properties.TryGetValue(propertyName, out var value)
             && value is bool boolValue
             && boolValue;
+    }
+
+    private static int? ReadBatteryLevelFromProperties(DeviceInformation device)
+    {
+        foreach (var propertyName in RequestedProperties.Where(property => property != IsConnectedProperty))
+        {
+            if (!device.Properties.TryGetValue(propertyName, out var value))
+            {
+                continue;
+            }
+
+            var batteryLevel = NormalizeBatteryLevel(value);
+            if (batteryLevel.HasValue)
+            {
+                return batteryLevel;
+            }
+        }
+
+        return null;
+    }
+
+    private static int? NormalizeBatteryLevel(object? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        var numericValue = value switch
+        {
+            byte byteValue => byteValue,
+            sbyte sbyteValue => sbyteValue,
+            short shortValue => shortValue,
+            ushort ushortValue => ushortValue,
+            int intValue => intValue,
+            uint uintValue when uintValue <= int.MaxValue => (int)uintValue,
+            long longValue when longValue is >= int.MinValue and <= int.MaxValue => (int)longValue,
+            ulong ulongValue when ulongValue <= int.MaxValue => (int)ulongValue,
+            float floatValue when !float.IsNaN(floatValue) && !float.IsInfinity(floatValue) => (int)Math.Round(floatValue),
+            double doubleValue when !double.IsNaN(doubleValue) && !double.IsInfinity(doubleValue) => (int)Math.Round(doubleValue),
+            decimal decimalValue when decimalValue is >= int.MinValue and <= int.MaxValue => (int)Math.Round(decimalValue),
+            string stringValue when int.TryParse(stringValue.TrimEnd('%'), out var parsedValue) => parsedValue,
+            _ => (int?)null
+        };
+
+        if (!numericValue.HasValue || numericValue.Value < 0 || numericValue.Value > 100)
+        {
+            return null;
+        }
+
+        return numericValue.Value;
+    }
+
+    private sealed record BatteryReadResult(int? BatteryLevel, string StatusMessage)
+    {
+        public static BatteryReadResult Success(int batteryLevel, string statusMessage)
+        {
+            return new BatteryReadResult(batteryLevel, statusMessage);
+        }
+
+        public static BatteryReadResult Unavailable(string statusMessage)
+        {
+            return new BatteryReadResult(null, statusMessage);
+        }
     }
 }
