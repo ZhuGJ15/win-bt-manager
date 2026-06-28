@@ -253,6 +253,12 @@ public partial class TaskbarOverlayWindow : Window
         {
             DeviceTilesPanel.Children.Add(CreateDeviceTile(device));
         }
+
+        var tooltipText = devices.Count == 0
+            ? "0 devices"
+            : $"{devices.Count} devices: {string.Join(", ", devices.Select(device => device.Name))}";
+        PlaceholderTile.ToolTip = tooltipText;
+        DeviceTilesPanel.ToolTip = tooltipText;
     }
 
     private static Border CreateDeviceTile(DeviceListItemViewModel device)
