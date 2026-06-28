@@ -3,6 +3,8 @@ using System.ComponentModel;
 using System.Windows.Threading;
 using WindowsBlueToothManager.Models;
 using WindowsBlueToothManager.ViewModels;
+using WinForms = System.Windows.Forms;
+using Drawing = System.Drawing;
 
 namespace WindowsBlueToothManager.Views.Windows;
 
@@ -10,17 +12,36 @@ public partial class MainWindow : Window
 {
     private readonly MainWindowViewModel _viewModel = new();
     private readonly DispatcherTimer _refreshTimer = new();
+    private readonly WinForms.NotifyIcon _notifyIcon = new();
+    private readonly WinForms.ToolStripMenuItem _openMenuItem = new();
+    private readonly WinForms.ToolStripMenuItem _refreshMenuItem = new();
+    private readonly WinForms.ToolStripMenuItem _exitMenuItem = new();
+    private bool _isExitRequested;
 
     public MainWindow()
     {
         InitializeComponent();
         DataContext = _viewModel;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        _viewModel.Devices.CollectionChanged += OnDevicesCollectionChanged;
         _refreshTimer.Tick += OnRefreshTimerTick;
+        InitializeTrayIcon();
         ApplyRefreshTimerInterval();
         _refreshTimer.Start();
         ApplyColumnHeaders();
         _ = _viewModel.RefreshDevicesAsync();
+    }
+
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        if (!_isExitRequested)
+        {
+            e.Cancel = true;
+            Hide();
+            return;
+        }
+
+        base.OnClosing(e);
     }
 
     protected override void OnClosed(EventArgs e)
@@ -28,6 +49,9 @@ public partial class MainWindow : Window
         _refreshTimer.Stop();
         _refreshTimer.Tick -= OnRefreshTimerTick;
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        _viewModel.Devices.CollectionChanged -= OnDevicesCollectionChanged;
+        _notifyIcon.Visible = false;
+        _notifyIcon.Dispose();
         base.OnClosed(e);
     }
 
@@ -89,6 +113,16 @@ public partial class MainWindow : Window
         {
             ApplyRefreshTimerInterval();
         }
+
+        if (e.PropertyName is nameof(MainWindowViewModel.SummaryText)
+            or nameof(MainWindowViewModel.LowBatteryDeviceCount)
+            or nameof(MainWindowViewModel.ConnectedDeviceCount)
+            or nameof(MainWindowViewModel.LastRefreshText)
+            or nameof(MainWindowViewModel.SelectedLanguageOption))
+        {
+            UpdateTrayText();
+            ApplyTrayMenuText();
+        }
     }
 
     private void ApplyColumnHeaders()
@@ -111,5 +145,87 @@ public partial class MainWindow : Window
     private async void OnRefreshTimerTick(object? sender, EventArgs e)
     {
         await _viewModel.RefreshDevicesAsync();
+        UpdateTrayText();
+    }
+
+    private void InitializeTrayIcon()
+    {
+        _openMenuItem.Click += (_, _) => ShowFromTray();
+        _refreshMenuItem.Click += async (_, _) => await RefreshFromTrayAsync();
+        _exitMenuItem.Click += (_, _) => ExitFromTray();
+
+        _notifyIcon.Icon = Drawing.SystemIcons.Application;
+        _notifyIcon.Visible = true;
+        _notifyIcon.DoubleClick += (_, _) => ShowFromTray();
+        _notifyIcon.ContextMenuStrip = new WinForms.ContextMenuStrip();
+        _notifyIcon.ContextMenuStrip.Items.AddRange(new WinForms.ToolStripItem[]
+        {
+            _openMenuItem,
+            _refreshMenuItem,
+            new WinForms.ToolStripSeparator(),
+            _exitMenuItem
+        });
+
+        ApplyTrayMenuText();
+        UpdateTrayText();
+    }
+
+    private void ApplyTrayMenuText()
+    {
+        var isChinese = _viewModel.CurrentLanguage == AppLanguage.Chinese;
+        _openMenuItem.Text = isChinese ? "打开主界面" : "Open";
+        _refreshMenuItem.Text = isChinese ? "立即刷新" : "Refresh now";
+        _exitMenuItem.Text = isChinese ? "退出" : "Exit";
+    }
+
+    private async Task RefreshFromTrayAsync()
+    {
+        await _viewModel.RefreshDevicesAsync();
+        UpdateTrayText();
+    }
+
+    private void ShowFromTray()
+    {
+        Show();
+        if (WindowState == WindowState.Minimized)
+        {
+            WindowState = WindowState.Normal;
+        }
+
+        Activate();
+    }
+
+    private void ExitFromTray()
+    {
+        _isExitRequested = true;
+        Close();
+    }
+
+    private void OnDevicesCollectionChanged(object? sender, EventArgs e)
+    {
+        UpdateTrayText();
+    }
+
+    private void UpdateTrayText()
+    {
+        var tooltipText = BuildTrayTooltipText();
+        _notifyIcon.Text = tooltipText.Length > 63 ? tooltipText[..60] + "..." : tooltipText;
+    }
+
+    private string BuildTrayTooltipText()
+    {
+        var connectedCount = _viewModel.ConnectedDeviceCount;
+        var lowBatteryCount = _viewModel.LowBatteryDeviceCount;
+        var knownBatteryLevels = _viewModel.Devices
+            .Where(device => device.BatteryLevel.HasValue)
+            .Select(device => device.BatteryLevel.GetValueOrDefault())
+            .ToList();
+        var lowestBatteryText = knownBatteryLevels.Count > 0
+            ? $"{knownBatteryLevels.Min()}%"
+            : "-";
+
+        return _viewModel.CurrentLanguage == AppLanguage.Chinese
+            ? $"WindowsBlueToothManager：已连接 {connectedCount}，低电量 {lowBatteryCount}，最低 {lowestBatteryText}"
+            : $"WindowsBlueToothManager: {connectedCount} connected, {lowBatteryCount} low, min {lowestBatteryText}";
     }
 }
