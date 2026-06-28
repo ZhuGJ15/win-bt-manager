@@ -16,9 +16,13 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
     private const string PowerLevelProperty = "System.Devices.PowerLevel";
     private static readonly TimeSpan BatteryReadTimeout = TimeSpan.FromSeconds(3);
 
-    private static readonly string[] RequestedProperties =
+    private static readonly string[] EnumerationProperties =
     {
-        IsConnectedProperty,
+        IsConnectedProperty
+    };
+
+    private static readonly string[] BatteryProperties =
+    {
         BatteryLifeProperty,
         BatteryLevelProperty,
         BatteryPercentageProperty,
@@ -30,19 +34,28 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
         var now = DateTime.Now;
         var devices = new Dictionary<string, BluetoothDeviceInfo>(StringComparer.OrdinalIgnoreCase);
 
-        await AddDevicesAsync(
+        var enumerationErrors = new List<string>();
+
+        await TryAddDevicesAsync(
             devices,
             BluetoothLEDevice.GetDeviceSelector(),
             DeviceType.Ble,
             now,
+            enumerationErrors,
             cancellationToken);
 
-        await AddDevicesAsync(
+        await TryAddDevicesAsync(
             devices,
             BluetoothDevice.GetDeviceSelector(),
             DeviceType.ClassicBluetooth,
             now,
+            enumerationErrors,
             cancellationToken);
+
+        if (devices.Count == 0 && enumerationErrors.Count > 0)
+        {
+            throw new InvalidOperationException(string.Join("; ", enumerationErrors));
+        }
 
         return devices.Values
             .OrderByDescending(device => device.IsConnected)
@@ -50,39 +63,73 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
             .ToList();
     }
 
-    private static async Task AddDevicesAsync(
+    private static async Task TryAddDevicesAsync(
         IDictionary<string, BluetoothDeviceInfo> devices,
         string selector,
         DeviceType deviceType,
         DateTime now,
+        ICollection<string> enumerationErrors,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var foundDevices = await DeviceInformation.FindAllAsync(selector, RequestedProperties);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        foreach (var device in foundDevices)
+        try
         {
-            if (string.IsNullOrWhiteSpace(device.Id))
+            cancellationToken.ThrowIfCancellationRequested();
+            var foundDevices = await FindAllDevicesAsync(selector, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            foreach (var device in foundDevices)
             {
-                continue;
+                if (string.IsNullOrWhiteSpace(device.Id))
+                {
+                    continue;
+                }
+
+                var isConnected = ReadBooleanProperty(device, IsConnectedProperty);
+                var batteryReadResult = await ReadBatteryLevelAsync(device, deviceType, isConnected, cancellationToken);
+
+                devices[device.Id] = new BluetoothDeviceInfo
+                {
+                    DeviceId = device.Id,
+                    Name = string.IsNullOrWhiteSpace(device.Name) ? "Unknown Bluetooth Device" : device.Name,
+                    DeviceType = deviceType,
+                    IsConnected = isConnected,
+                    BatteryLevel = batteryReadResult.BatteryLevel,
+                    ShowInTaskbarOverlay = false,
+                    ShowInTray = false,
+                    LastUpdatedAt = now,
+                    StatusMessage = batteryReadResult.StatusMessage
+                };
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            enumerationErrors.Add($"{deviceType}: {exception.Message}");
+        }
+    }
 
-            var isConnected = ReadBooleanProperty(device, IsConnectedProperty);
-            var batteryReadResult = await ReadBatteryLevelAsync(device, deviceType, isConnected, cancellationToken);
-
-            devices[device.Id] = new BluetoothDeviceInfo
-            {
-                DeviceId = device.Id,
-                Name = string.IsNullOrWhiteSpace(device.Name) ? "Unknown Bluetooth Device" : device.Name,
-                DeviceType = deviceType,
-                IsConnected = isConnected,
-                BatteryLevel = batteryReadResult.BatteryLevel,
-                ShowInTaskbarOverlay = false,
-                ShowInTray = false,
-                LastUpdatedAt = now,
-                StatusMessage = batteryReadResult.StatusMessage
-            };
+    private static async Task<IReadOnlyList<DeviceInformation>> FindAllDevicesAsync(
+        string selector,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var devices = await DeviceInformation.FindAllAsync(selector, EnumerationProperties);
+            return devices.ToList();
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var devices = await DeviceInformation.FindAllAsync(selector);
+            return devices.ToList();
         }
     }
 
@@ -106,7 +153,7 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
             }
         }
 
-        var propertyBatteryLevel = ReadBatteryLevelFromProperties(device);
+        var propertyBatteryLevel = await ReadBatteryLevelFromPropertiesAsync(device, cancellationToken);
         return propertyBatteryLevel.HasValue
             ? BatteryReadResult.Success(propertyBatteryLevel.Value, "Battery read from Windows device properties")
             : BatteryReadResult.Unavailable("Battery unavailable");
@@ -194,11 +241,49 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
             && boolValue;
     }
 
-    private static int? ReadBatteryLevelFromProperties(DeviceInformation device)
+    private static async Task<int?> ReadBatteryLevelFromPropertiesAsync(
+        DeviceInformation device,
+        CancellationToken cancellationToken)
     {
-        foreach (var propertyName in RequestedProperties.Where(property => property != IsConnectedProperty))
+        var batteryLevel = ReadBatteryLevelFromProperties(device.Properties);
+        if (batteryLevel.HasValue)
         {
-            if (!device.Properties.TryGetValue(propertyName, out var value))
+            return batteryLevel;
+        }
+
+        foreach (var propertyName in BatteryProperties)
+        {
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var enrichedDevice = await DeviceInformation.CreateFromIdAsync(device.Id, new[] { propertyName });
+                cancellationToken.ThrowIfCancellationRequested();
+
+                batteryLevel = ReadBatteryLevelFromProperties(enrichedDevice.Properties);
+                if (batteryLevel.HasValue)
+                {
+                    return batteryLevel;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch
+            {
+                // Some Windows builds or device drivers throw "Element not found" for
+                // unsupported properties. Keep trying the remaining property names.
+            }
+        }
+
+        return null;
+    }
+
+    private static int? ReadBatteryLevelFromProperties(IReadOnlyDictionary<string, object> properties)
+    {
+        foreach (var propertyName in BatteryProperties)
+        {
+            if (!properties.TryGetValue(propertyName, out var value))
             {
                 continue;
             }

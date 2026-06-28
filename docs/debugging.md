@@ -246,6 +246,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | BLE 设备仍显示 `待获取/Pending` | 确认设备已连接，并确认该设备是否支持标准 GATT Battery Service |
 | BTC 设备仍显示 `待获取/Pending` | 确认该设备是已连接状态，并确认 Windows 设置页是否能看到电量；如果 Windows 设置也没有电量，当前读取不到是预期 |
 | Windows 设置里能看到电量，但应用显示待获取 | 该设备可能通过厂商驱动或非标准接口暴露电量，需要后续补充 WMI、注册表或厂商接口策略 |
+| UI 显示“设备刷新失败：找不到元素”且列表空白 | 已将电量属性读取从全局枚举参数改为逐设备、逐属性尝试，并为基础设备枚举增加无属性降级；请重新构建运行，预期不再因单个属性不支持而清空设备列表 |
 | `CS0121 Math.Clamp(byte, byte, byte) 和 Math.Clamp(int, int, int) 调用具有二义性` | 已将 `DataReader.ReadByte()` 的返回值显式转换为 `int` 后再调用 `Math.Clamp` |
 | 读取时界面短暂显示刷新中 | BLE 电量读取有 3 秒单设备超时，这是为了避免单个设备卡住刷新 |
 | BTC 设备没有电量 | 当前已尝试读取 Windows 设备属性；如果仍没有电量，请记录设备型号和 Windows 蓝牙设置页是否显示电量 |
