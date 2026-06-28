@@ -1,5 +1,6 @@
 using System.Windows;
 using System.ComponentModel;
+using System.Windows.Threading;
 using WindowsBlueToothManager.Models;
 using WindowsBlueToothManager.ViewModels;
 
@@ -8,18 +9,25 @@ namespace WindowsBlueToothManager.Views.Windows;
 public partial class MainWindow : Window
 {
     private readonly MainWindowViewModel _viewModel = new();
+    private readonly DispatcherTimer _refreshTimer = new();
 
     public MainWindow()
     {
         InitializeComponent();
         DataContext = _viewModel;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        _refreshTimer.Tick += OnRefreshTimerTick;
+        ApplyRefreshTimerInterval();
+        _refreshTimer.Start();
         ApplyColumnHeaders();
     }
 
-    private void RefreshButton_Click(object sender, RoutedEventArgs e)
+    protected override void OnClosed(EventArgs e)
     {
-        _viewModel.RefreshDevices();
+        _refreshTimer.Stop();
+        _refreshTimer.Tick -= OnRefreshTimerTick;
+        _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        base.OnClosed(e);
     }
 
     private void ChineseLanguageMenuItem_Click(object sender, RoutedEventArgs e)
@@ -30,6 +38,26 @@ public partial class MainWindow : Window
     private void EnglishLanguageMenuItem_Click(object sender, RoutedEventArgs e)
     {
         _viewModel.SetLanguage(AppLanguage.English);
+    }
+
+    private void Refresh5SecondsMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SetRefreshInterval(TimeSpan.FromSeconds(5));
+    }
+
+    private void Refresh10SecondsMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SetRefreshInterval(TimeSpan.FromSeconds(10));
+    }
+
+    private void Refresh30SecondsMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SetRefreshInterval(TimeSpan.FromSeconds(30));
+    }
+
+    private void Refresh1MinuteMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SetRefreshInterval(TimeSpan.FromMinutes(1));
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -45,6 +73,11 @@ public partial class MainWindow : Window
         {
             ApplyColumnHeaders();
         }
+
+        if (e.PropertyName is nameof(MainWindowViewModel.SelectedRefreshInterval))
+        {
+            ApplyRefreshTimerInterval();
+        }
     }
 
     private void ApplyColumnHeaders()
@@ -57,5 +90,15 @@ public partial class MainWindow : Window
         TrayColumn.Header = _viewModel.TrayHeaderText;
         DisplayColumn.Header = _viewModel.DisplayHeaderText;
         UpdatedColumn.Header = _viewModel.UpdatedHeaderText;
+    }
+
+    private void ApplyRefreshTimerInterval()
+    {
+        _refreshTimer.Interval = _viewModel.SelectedRefreshInterval;
+    }
+
+    private void OnRefreshTimerTick(object? sender, EventArgs e)
+    {
+        _viewModel.RefreshDevices();
     }
 }

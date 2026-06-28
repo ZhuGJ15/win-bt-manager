@@ -103,13 +103,15 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 检查项 | 预期结果 |
 | --- | --- |
 | 主窗口布局 | 打开后不再是骨架提示页，而是设备监控界面 |
-| 顶部区域 | 显示应用名、模拟数据状态和 `Refresh` 按钮 |
+| 顶部菜单栏 | 显示更明显的顶部菜单栏，菜单项高度、宽度和字体应比之前更醒目 |
+| 顶部区域 | 显示应用名和模拟数据状态，不再显示 `Refresh` 按钮 |
 | 统计区域 | 显示 Connected、Shown at bottom、Low battery 三个统计值 |
 | 设备列表 | 至少显示 4 条模拟设备数据 |
 | 设备类型 | 列表中能看到 BLE、BTC、Unknown |
 | 电量展示 | 有百分比、进度条、低电量提示和 Unknown 电量 |
 | 展示开关 | 勾选或取消 Bottom/Tray 后，统计值和 Display 列会更新 |
-| 手动刷新 | 点击 `Refresh` 后更新时间变化，部分模拟电量会小幅变化 |
+| 刷新频率 | 在顶部菜单栏打开 `设置/Settings` -> `刷新频率/Refresh frequency`，可选择 5s、10s、30s、1min |
+| 自动刷新 | 选择刷新频率后，等待对应时间，更新时间变化，部分模拟电量会小幅变化 |
 | 中英文切换 | 在顶部菜单栏打开 `设置/Settings` -> `语言/Language`，切换 `中文` 和 `English` 后，按钮、统计卡片、表格列名、状态文案、底部提示和设备状态会切换语言 |
 
 ### 常见问题排查
@@ -121,6 +123,8 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | `无法对 ... BatteryProgressValue 类型的只读属性进行 TwoWay 或 OneWayToSource 绑定` | 已将电量进度条的 `ProgressBar.Value` 绑定显式改为 `Mode=OneWay` |
 | 表格没有设备数据 | 确认 `MainWindow.xaml.cs` 中设置了 `DataContext = _viewModel` |
 | 勾选 Bottom/Tray 后统计不变 | 确认点击的是复选框本身，或切换单元格后观察统计区域 |
+| 刷新后 Bottom/Tray 勾选被重置 | 已在模拟刷新时保留设备展示偏好；如仍重置，检查 `RefreshDevices()` 是否保留旧设备偏好 |
+| 刷新频率切换后没有自动刷新 | 确认 `MainWindow.xaml.cs` 中启动了 `DispatcherTimer`，且 `SelectedRefreshInterval` 改变时调用了 `ApplyRefreshTimerInterval()` |
 | 切换语言后表格列名不变 | 确认 `MainWindow.xaml.cs` 中调用了 `ApplyColumnHeaders()`，DataGrid 列头需要通过代码同步更新 |
 | 真实蓝牙设备没有出现 | 当前功能只使用模拟数据，真实设备枚举会在后续功能接入 |
 
@@ -132,5 +136,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 启动异常可见化 | 已完成 | 已改为代码显式创建主窗口，并为启动失败增加错误弹窗 |
 | BatteryProgressValue 绑定修复 | 已完成 | 已将电量进度条只读属性绑定修正为单向绑定 |
 | 中英文切换 | 已完成 | 已增加顶部菜单栏，并将语言切换放到 `设置/Settings` 菜单下 |
+| 顶部菜单栏优化 | 已完成 | 已增大菜单栏和菜单项尺寸，提高可见性 |
+| 刷新频率设置 | 已完成 | 已移除刷新按钮，改为 `设置/Settings` -> `刷新频率/Refresh frequency`，支持 5s、10s、30s、1min 自动刷新 |
 | 本机静态检查 | 已完成 | 当前环境可做 XML/XAML 格式检查，但不能运行 WPF |
 | 用户 Windows 调试确认 | 待确认 | 需要用户按本文档在 Windows 10/11 上验证 |

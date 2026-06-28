@@ -21,15 +21,11 @@
             <Setter Property="FontSize" Value="13" />
         </Style>
 
-        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+        <Style TargetType="MenuItem">
             <Setter Property="MinWidth" Value="112" />
-            <Setter Property="Height" Value="36" />
-            <Setter Property="Padding" Value="14,0" />
-            <Setter Property="Background" Value="#2563EB" />
-            <Setter Property="Foreground" Value="#FFFFFF" />
-            <Setter Property="BorderBrush" Value="#1D4ED8" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="Padding" Value="16,7" />
+            <Setter Property="FontSize" Value="14" />
         </Style>
 
         <Style TargetType="DataGridColumnHeader">
@@ -60,7 +56,8 @@
                 BorderBrush="#D8DEE8"
                 BorderThickness="0,0,0,1">
             <Menu Background="#FFFFFF"
-                  Padding="8,0">
+                  MinHeight="40"
+                  Padding="16,3">
                 <MenuItem Header="{Binding SettingsMenuText}">
                     <MenuItem Header="{Binding LanguageMenuText}">
                         <MenuItem Header="{Binding ChineseLanguageText}"
@@ -72,6 +69,25 @@
                                   IsChecked="{Binding IsEnglishLanguageSelected, Mode=OneWay}"
                                   Click="EnglishLanguageMenuItem_Click" />
                     </MenuItem>
+                    <Separator />
+                    <MenuItem Header="{Binding RefreshFrequencyMenuText}">
+                        <MenuItem Header="{Binding Refresh5SecondsText}"
+                                  IsCheckable="True"
+                                  IsChecked="{Binding IsRefresh5SecondsSelected, Mode=OneWay}"
+                                  Click="Refresh5SecondsMenuItem_Click" />
+                        <MenuItem Header="{Binding Refresh10SecondsText}"
+                                  IsCheckable="True"
+                                  IsChecked="{Binding IsRefresh10SecondsSelected, Mode=OneWay}"
+                                  Click="Refresh10SecondsMenuItem_Click" />
+                        <MenuItem Header="{Binding Refresh30SecondsText}"
+                                  IsCheckable="True"
+                                  IsChecked="{Binding IsRefresh30SecondsSelected, Mode=OneWay}"
+                                  Click="Refresh30SecondsMenuItem_Click" />
+                        <MenuItem Header="{Binding Refresh1MinuteText}"
+                                  IsCheckable="True"
+                                  IsChecked="{Binding IsRefresh1MinuteSelected, Mode=OneWay}"
+                                  Click="Refresh1MinuteMenuItem_Click" />
+                    </MenuItem>
                 </MenuItem>
             </Menu>
         </Border>
@@ -82,10 +98,6 @@
                 BorderThickness="0,0,0,1"
                 Padding="24,18">
             <DockPanel LastChildFill="True">
-                <Button DockPanel.Dock="Right"
-                        Style="{StaticResource PrimaryButtonStyle}"
-                        Content="{Binding RefreshButtonText}"
-                        Click="RefreshButton_Click" />
                 <StackPanel>
                     <TextBlock Text="WindowsBlueToothManager"
                                FontSize="26"

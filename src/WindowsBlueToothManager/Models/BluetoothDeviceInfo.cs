@@ -1,6 +1,6 @@
 namespace WindowsBlueToothManager.Models;
 
-public sealed class BluetoothDeviceInfo
+public sealed record BluetoothDeviceInfo
 {
     public required string DeviceId { get; init; }
 

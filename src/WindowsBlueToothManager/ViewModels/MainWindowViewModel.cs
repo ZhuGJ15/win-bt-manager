@@ -9,6 +9,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly Random _random = new();
     private DateTime _lastRefreshAt;
     private LanguageOption _selectedLanguageOption;
+    private TimeSpan _selectedRefreshInterval = TimeSpan.FromSeconds(5);
 
     public MainWindowViewModel()
     {
@@ -51,6 +52,19 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public AppLanguage CurrentLanguage => SelectedLanguageOption.Language;
 
+    public TimeSpan SelectedRefreshInterval
+    {
+        get => _selectedRefreshInterval;
+        private set
+        {
+            if (SetProperty(ref _selectedRefreshInterval, value))
+            {
+                NotifyRefreshIntervalPropertiesChanged();
+                OnPropertyChanged(nameof(StatusText));
+            }
+        }
+    }
+
     public DateTime LastRefreshAt
     {
         get => _lastRefreshAt;
@@ -67,7 +81,9 @@ public sealed class MainWindowViewModel : ObservableObject
         ? Translate("未刷新", "Not refreshed")
         : $"{Translate("最后刷新", "Last refresh")}: {LastRefreshAt:yyyy-MM-dd HH:mm:ss}";
 
-    public string StatusText => Translate("正在显示模拟蓝牙设备数据。", "Displaying simulated Bluetooth device data.");
+    public string StatusText => CurrentLanguage == AppLanguage.Chinese
+        ? $"正在显示模拟蓝牙设备数据。自动刷新频率：{RefreshIntervalText}"
+        : $"Displaying simulated Bluetooth device data. Auto refresh: {RefreshIntervalText}";
 
     public int ConnectedDeviceCount => Devices.Count(device => device.IsConnected);
 
@@ -85,6 +101,8 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public string LanguageMenuText => Translate("语言", "Language");
 
+    public string RefreshFrequencyMenuText => Translate("刷新频率", "Refresh frequency");
+
     public string ChineseLanguageText => "中文";
 
     public string EnglishLanguageText => "English";
@@ -93,7 +111,30 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public bool IsEnglishLanguageSelected => CurrentLanguage == AppLanguage.English;
 
-    public string RefreshButtonText => Translate("刷新", "Refresh");
+    public string Refresh5SecondsText => Translate("5 秒", "5 seconds");
+
+    public string Refresh10SecondsText => Translate("10 秒", "10 seconds");
+
+    public string Refresh30SecondsText => Translate("30 秒", "30 seconds");
+
+    public string Refresh1MinuteText => Translate("1 分钟", "1 minute");
+
+    public bool IsRefresh5SecondsSelected => SelectedRefreshInterval == TimeSpan.FromSeconds(5);
+
+    public bool IsRefresh10SecondsSelected => SelectedRefreshInterval == TimeSpan.FromSeconds(10);
+
+    public bool IsRefresh30SecondsSelected => SelectedRefreshInterval == TimeSpan.FromSeconds(30);
+
+    public bool IsRefresh1MinuteSelected => SelectedRefreshInterval == TimeSpan.FromMinutes(1);
+
+    public string RefreshIntervalText => SelectedRefreshInterval.TotalSeconds switch
+    {
+        5 => Refresh5SecondsText,
+        10 => Refresh10SecondsText,
+        30 => Refresh30SecondsText,
+        60 => Refresh1MinuteText,
+        _ => Translate($"{SelectedRefreshInterval.TotalSeconds:0} 秒", $"{SelectedRefreshInterval.TotalSeconds:0} seconds")
+    };
 
     public string ConnectedLabelText => Translate("已连接", "Connected");
 
@@ -126,11 +167,24 @@ public sealed class MainWindowViewModel : ObservableObject
     public void RefreshDevices()
     {
         var now = DateTime.Now;
+        var displayPreferences = Devices.ToDictionary(
+            device => device.DeviceId,
+            device => (device.ShowInTaskbarOverlay, device.ShowInTray));
         Devices.Clear();
 
         foreach (var device in CreateSampleDevices(now))
         {
-            var item = new DeviceListItemViewModel(device, CurrentLanguage);
+            var deviceToDisplay = device;
+            if (displayPreferences.TryGetValue(device.DeviceId, out var preference))
+            {
+                deviceToDisplay = device with
+                {
+                    ShowInTaskbarOverlay = preference.ShowInTaskbarOverlay,
+                    ShowInTray = preference.ShowInTray
+                };
+            }
+
+            var item = new DeviceListItemViewModel(deviceToDisplay, CurrentLanguage);
             item.PropertyChanged += (_, args) =>
             {
                 if (args.PropertyName is nameof(DeviceListItemViewModel.ShowInTaskbarOverlay)
@@ -144,6 +198,17 @@ public sealed class MainWindowViewModel : ObservableObject
 
         LastRefreshAt = now;
         NotifySummaryChanged();
+    }
+
+    public void SetRefreshInterval(TimeSpan interval)
+    {
+        if (SelectedRefreshInterval == interval)
+        {
+            NotifyRefreshIntervalPropertiesChanged();
+            return;
+        }
+
+        SelectedRefreshInterval = interval;
     }
 
     public void SetLanguage(AppLanguage language)
@@ -238,11 +303,12 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(LanguageLabelText));
         OnPropertyChanged(nameof(SettingsMenuText));
         OnPropertyChanged(nameof(LanguageMenuText));
+        OnPropertyChanged(nameof(RefreshFrequencyMenuText));
         OnPropertyChanged(nameof(ChineseLanguageText));
         OnPropertyChanged(nameof(EnglishLanguageText));
         OnPropertyChanged(nameof(IsChineseLanguageSelected));
         OnPropertyChanged(nameof(IsEnglishLanguageSelected));
-        OnPropertyChanged(nameof(RefreshButtonText));
+        NotifyRefreshIntervalPropertiesChanged();
         OnPropertyChanged(nameof(ConnectedLabelText));
         OnPropertyChanged(nameof(ShownAtBottomLabelText));
         OnPropertyChanged(nameof(LowBatteryLabelText));
@@ -261,5 +327,18 @@ public sealed class MainWindowViewModel : ObservableObject
     private string Translate(string chinese, string english)
     {
         return CurrentLanguage == AppLanguage.Chinese ? chinese : english;
+    }
+
+    private void NotifyRefreshIntervalPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(Refresh5SecondsText));
+        OnPropertyChanged(nameof(Refresh10SecondsText));
+        OnPropertyChanged(nameof(Refresh30SecondsText));
+        OnPropertyChanged(nameof(Refresh1MinuteText));
+        OnPropertyChanged(nameof(IsRefresh5SecondsSelected));
+        OnPropertyChanged(nameof(IsRefresh10SecondsSelected));
+        OnPropertyChanged(nameof(IsRefresh30SecondsSelected));
+        OnPropertyChanged(nameof(IsRefresh1MinuteSelected));
+        OnPropertyChanged(nameof(RefreshIntervalText));
     }
 }
