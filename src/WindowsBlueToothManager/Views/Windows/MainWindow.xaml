@@ -70,6 +70,17 @@
                                   Click="EnglishLanguageMenuItem_Click" />
                     </MenuItem>
                     <Separator />
+                    <MenuItem Header="{Binding DataSourceMenuText}">
+                        <MenuItem Header="{Binding WindowsBluetoothSourceText}"
+                                  IsCheckable="True"
+                                  IsChecked="{Binding IsWindowsBluetoothSourceSelected, Mode=OneWay}"
+                                  Click="WindowsBluetoothSourceMenuItem_Click" />
+                        <MenuItem Header="{Binding SimulatedSourceText}"
+                                  IsCheckable="True"
+                                  IsChecked="{Binding IsSimulatedSourceSelected, Mode=OneWay}"
+                                  Click="SimulatedSourceMenuItem_Click" />
+                    </MenuItem>
+                    <Separator />
                     <MenuItem Header="{Binding RefreshFrequencyMenuText}">
                         <MenuItem Header="{Binding Refresh5SecondsText}"
                                   IsCheckable="True"

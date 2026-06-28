@@ -1,15 +1,21 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using WindowsBlueToothManager.Bluetooth;
+using WindowsBlueToothManager.Bluetooth.Abstractions;
 using WindowsBlueToothManager.Models;
 
 namespace WindowsBlueToothManager.ViewModels;
 
 public sealed class MainWindowViewModel : ObservableObject
 {
+    private readonly IBluetoothDeviceEnumerator _windowsBluetoothDeviceEnumerator = new WindowsBluetoothDeviceEnumerator();
     private readonly Random _random = new();
     private DateTime _lastRefreshAt;
     private LanguageOption _selectedLanguageOption;
     private TimeSpan _selectedRefreshInterval = TimeSpan.FromSeconds(5);
+    private DeviceDataSourceMode _selectedDataSourceMode = DeviceDataSourceMode.WindowsBluetooth;
+    private bool _isRefreshing;
+    private string? _lastErrorMessage;
 
     public MainWindowViewModel()
     {
@@ -20,7 +26,6 @@ public sealed class MainWindowViewModel : ObservableObject
         };
         _selectedLanguageOption = LanguageOptions[0];
         Devices.CollectionChanged += OnDevicesChanged;
-        RefreshDevices();
     }
 
     public ObservableCollection<LanguageOption> LanguageOptions { get; }
@@ -65,6 +70,44 @@ public sealed class MainWindowViewModel : ObservableObject
         }
     }
 
+    public DeviceDataSourceMode SelectedDataSourceMode
+    {
+        get => _selectedDataSourceMode;
+        private set
+        {
+            if (SetProperty(ref _selectedDataSourceMode, value))
+            {
+                NotifyDataSourcePropertiesChanged();
+                OnPropertyChanged(nameof(StatusText));
+                OnPropertyChanged(nameof(FooterText));
+            }
+        }
+    }
+
+    public bool IsRefreshing
+    {
+        get => _isRefreshing;
+        private set
+        {
+            if (SetProperty(ref _isRefreshing, value))
+            {
+                OnPropertyChanged(nameof(StatusText));
+            }
+        }
+    }
+
+    public string? LastErrorMessage
+    {
+        get => _lastErrorMessage;
+        private set
+        {
+            if (SetProperty(ref _lastErrorMessage, value))
+            {
+                OnPropertyChanged(nameof(StatusText));
+            }
+        }
+    }
+
     public DateTime LastRefreshAt
     {
         get => _lastRefreshAt;
@@ -81,9 +124,31 @@ public sealed class MainWindowViewModel : ObservableObject
         ? Translate("未刷新", "Not refreshed")
         : $"{Translate("最后刷新", "Last refresh")}: {LastRefreshAt:yyyy-MM-dd HH:mm:ss}";
 
-    public string StatusText => CurrentLanguage == AppLanguage.Chinese
-        ? $"正在显示模拟蓝牙设备数据。自动刷新频率：{RefreshIntervalText}"
-        : $"Displaying simulated Bluetooth device data. Auto refresh: {RefreshIntervalText}";
+    public string StatusText
+    {
+        get
+        {
+            if (IsRefreshing)
+            {
+                return Translate("正在刷新设备列表...", "Refreshing device list...");
+            }
+
+            if (!string.IsNullOrWhiteSpace(LastErrorMessage))
+            {
+                return CurrentLanguage == AppLanguage.Chinese
+                    ? $"设备刷新失败：{LastErrorMessage}"
+                    : $"Device refresh failed: {LastErrorMessage}";
+            }
+
+            var sourceText = SelectedDataSourceMode == DeviceDataSourceMode.WindowsBluetooth
+                ? Translate("Windows 蓝牙设备枚举", "Windows Bluetooth enumeration")
+                : Translate("模拟蓝牙设备数据", "simulated Bluetooth device data");
+
+            return CurrentLanguage == AppLanguage.Chinese
+                ? $"正在显示{sourceText}。自动刷新频率：{RefreshIntervalText}"
+                : $"Displaying {sourceText}. Auto refresh: {RefreshIntervalText}";
+        }
+    }
 
     public int ConnectedDeviceCount => Devices.Count(device => device.IsConnected);
 
@@ -102,6 +167,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public string LanguageMenuText => Translate("语言", "Language");
 
     public string RefreshFrequencyMenuText => Translate("刷新频率", "Refresh frequency");
+
+    public string DataSourceMenuText => Translate("数据源", "Data source");
 
     public string ChineseLanguageText => "中文";
 
@@ -127,6 +194,14 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public bool IsRefresh1MinuteSelected => SelectedRefreshInterval == TimeSpan.FromMinutes(1);
 
+    public string WindowsBluetoothSourceText => Translate("Windows 蓝牙", "Windows Bluetooth");
+
+    public string SimulatedSourceText => Translate("模拟数据", "Simulated data");
+
+    public bool IsWindowsBluetoothSourceSelected => SelectedDataSourceMode == DeviceDataSourceMode.WindowsBluetooth;
+
+    public bool IsSimulatedSourceSelected => SelectedDataSourceMode == DeviceDataSourceMode.Simulated;
+
     public string RefreshIntervalText => SelectedRefreshInterval.TotalSeconds switch
     {
         5 => Refresh5SecondsText,
@@ -144,9 +219,13 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public string DeviceListTitleText => Translate("已连接蓝牙设备", "Connected Bluetooth devices");
 
-    public string FooterText => Translate(
-        "模拟数据模式。真实蓝牙扫描将在后续硬件集成阶段接入。",
-        "Simulated data mode. Real Bluetooth scanning will be connected in the next hardware integration phase.");
+    public string FooterText => SelectedDataSourceMode == DeviceDataSourceMode.WindowsBluetooth
+        ? Translate(
+            "Windows 蓝牙枚举模式。当前只读取设备列表和连接状态，电量读取将在后续功能接入。",
+            "Windows Bluetooth enumeration mode. Device list and connection status are shown now; battery reading will be connected later.")
+        : Translate(
+            "模拟数据模式。真实蓝牙扫描可在设置菜单中切回 Windows 蓝牙数据源。",
+            "Simulated data mode. Switch back to Windows Bluetooth from the settings menu for real device enumeration.");
 
     public string DeviceHeaderText => Translate("设备", "Device");
 
@@ -164,40 +243,63 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public string UpdatedHeaderText => Translate("更新时间", "Updated");
 
-    public void RefreshDevices()
+    public async Task RefreshDevicesAsync()
     {
+        if (IsRefreshing)
+        {
+            return;
+        }
+
         var now = DateTime.Now;
         var displayPreferences = Devices.ToDictionary(
             device => device.DeviceId,
             device => (device.ShowInTaskbarOverlay, device.ShowInTray));
-        Devices.Clear();
 
-        foreach (var device in CreateSampleDevices(now))
+        try
         {
-            var deviceToDisplay = device;
-            if (displayPreferences.TryGetValue(device.DeviceId, out var preference))
+            IsRefreshing = true;
+            LastErrorMessage = null;
+            var devices = SelectedDataSourceMode == DeviceDataSourceMode.WindowsBluetooth
+                ? await _windowsBluetoothDeviceEnumerator.EnumerateAsync(CancellationToken.None)
+                : CreateSampleDevices(now);
+
+            Devices.Clear();
+
+            foreach (var device in devices)
             {
-                deviceToDisplay = device with
+                var deviceToDisplay = device;
+                if (displayPreferences.TryGetValue(device.DeviceId, out var preference))
                 {
-                    ShowInTaskbarOverlay = preference.ShowInTaskbarOverlay,
-                    ShowInTray = preference.ShowInTray
+                    deviceToDisplay = device with
+                    {
+                        ShowInTaskbarOverlay = preference.ShowInTaskbarOverlay,
+                        ShowInTray = preference.ShowInTray
+                    };
+                }
+
+                var item = new DeviceListItemViewModel(deviceToDisplay, CurrentLanguage);
+                item.PropertyChanged += (_, args) =>
+                {
+                    if (args.PropertyName is nameof(DeviceListItemViewModel.ShowInTaskbarOverlay)
+                        or nameof(DeviceListItemViewModel.ShowInTray))
+                    {
+                        NotifySummaryChanged();
+                    }
                 };
+                Devices.Add(item);
             }
 
-            var item = new DeviceListItemViewModel(deviceToDisplay, CurrentLanguage);
-            item.PropertyChanged += (_, args) =>
-            {
-                if (args.PropertyName is nameof(DeviceListItemViewModel.ShowInTaskbarOverlay)
-                    or nameof(DeviceListItemViewModel.ShowInTray))
-                {
-                    NotifySummaryChanged();
-                }
-            };
-            Devices.Add(item);
+            LastRefreshAt = DateTime.Now;
         }
-
-        LastRefreshAt = now;
-        NotifySummaryChanged();
+        catch (Exception exception)
+        {
+            LastErrorMessage = exception.Message;
+        }
+        finally
+        {
+            IsRefreshing = false;
+            NotifySummaryChanged();
+        }
     }
 
     public void SetRefreshInterval(TimeSpan interval)
@@ -209,6 +311,18 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         SelectedRefreshInterval = interval;
+    }
+
+    public async Task SetDataSourceModeAsync(DeviceDataSourceMode dataSourceMode)
+    {
+        if (SelectedDataSourceMode == dataSourceMode)
+        {
+            NotifyDataSourcePropertiesChanged();
+            return;
+        }
+
+        SelectedDataSourceMode = dataSourceMode;
+        await RefreshDevicesAsync();
     }
 
     public void SetLanguage(AppLanguage language)
@@ -304,11 +418,13 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(SettingsMenuText));
         OnPropertyChanged(nameof(LanguageMenuText));
         OnPropertyChanged(nameof(RefreshFrequencyMenuText));
+        OnPropertyChanged(nameof(DataSourceMenuText));
         OnPropertyChanged(nameof(ChineseLanguageText));
         OnPropertyChanged(nameof(EnglishLanguageText));
         OnPropertyChanged(nameof(IsChineseLanguageSelected));
         OnPropertyChanged(nameof(IsEnglishLanguageSelected));
         NotifyRefreshIntervalPropertiesChanged();
+        NotifyDataSourcePropertiesChanged();
         OnPropertyChanged(nameof(ConnectedLabelText));
         OnPropertyChanged(nameof(ShownAtBottomLabelText));
         OnPropertyChanged(nameof(LowBatteryLabelText));
@@ -340,5 +456,13 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsRefresh30SecondsSelected));
         OnPropertyChanged(nameof(IsRefresh1MinuteSelected));
         OnPropertyChanged(nameof(RefreshIntervalText));
+    }
+
+    private void NotifyDataSourcePropertiesChanged()
+    {
+        OnPropertyChanged(nameof(WindowsBluetoothSourceText));
+        OnPropertyChanged(nameof(SimulatedSourceText));
+        OnPropertyChanged(nameof(IsWindowsBluetoothSourceSelected));
+        OnPropertyChanged(nameof(IsSimulatedSourceSelected));
     }
 }

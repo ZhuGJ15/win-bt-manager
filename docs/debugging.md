@@ -79,7 +79,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 
 ### 目标
 
-验证主窗口已经具备初步设备监控界面，可以使用模拟数据展示设备列表、设备类型、连接状态、电量、底部展示开关、托盘展示开关和手动刷新。
+验证主窗口已经具备初步设备监控界面，可以展示设备列表、设备类型、连接状态、电量、底部展示开关、托盘展示开关，并支持通过设置菜单配置自动刷新频率。
 
 ### 前置条件
 
@@ -123,10 +123,10 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | `无法对 ... BatteryProgressValue 类型的只读属性进行 TwoWay 或 OneWayToSource 绑定` | 已将电量进度条的 `ProgressBar.Value` 绑定显式改为 `Mode=OneWay` |
 | 表格没有设备数据 | 确认 `MainWindow.xaml.cs` 中设置了 `DataContext = _viewModel` |
 | 勾选 Bottom/Tray 后统计不变 | 确认点击的是复选框本身，或切换单元格后观察统计区域 |
-| 刷新后 Bottom/Tray 勾选被重置 | 已在模拟刷新时保留设备展示偏好；如仍重置，检查 `RefreshDevices()` 是否保留旧设备偏好 |
+| 刷新后 Bottom/Tray 勾选被重置 | 已在刷新时保留设备展示偏好；如仍重置，检查 `RefreshDevicesAsync()` 是否保留旧设备偏好 |
 | 刷新频率切换后没有自动刷新 | 确认 `MainWindow.xaml.cs` 中启动了 `DispatcherTimer`，且 `SelectedRefreshInterval` 改变时调用了 `ApplyRefreshTimerInterval()` |
 | 切换语言后表格列名不变 | 确认 `MainWindow.xaml.cs` 中调用了 `ApplyColumnHeaders()`，DataGrid 列头需要通过代码同步更新 |
-| 真实蓝牙设备没有出现 | 当前功能只使用模拟数据，真实设备枚举会在后续功能接入 |
+| 真实蓝牙设备没有出现 | 确认当前数据源是 `Windows 蓝牙/Windows Bluetooth`，并参考功能 3 的设备枚举排查项 |
 
 ### 当前验证状态
 
@@ -139,4 +139,63 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 顶部菜单栏优化 | 已完成 | 已增大菜单栏和菜单项尺寸，提高可见性 |
 | 刷新频率设置 | 已完成 | 已移除刷新按钮，改为 `设置/Settings` -> `刷新频率/Refresh frequency`，支持 5s、10s、30s、1min 自动刷新 |
 | 本机静态检查 | 已完成 | 当前环境可做 XML/XAML 格式检查，但不能运行 WPF |
+| 用户 Windows 调试确认 | 已完成 | 用户已确认该阶段优化暂时结束 |
+
+## 功能 3：Windows 蓝牙设备枚举
+
+### 目标
+
+验证应用可以通过 Windows 蓝牙 API 枚举 BLE 和经典蓝牙设备，并将真实设备显示到主界面列表中。当前功能只负责设备枚举和连接状态读取，电量读取仍会显示为未知。
+
+### 前置条件
+
+| 条件 | 说明 |
+| --- | --- |
+| 操作系统 | Windows 10 或 Windows 11 |
+| SDK | .NET 8 SDK |
+| 蓝牙状态 | Windows 蓝牙已开启 |
+| 设备条件 | 至少有一个已配对或可被系统识别的蓝牙设备 |
+
+### 命令行调试方式
+
+在项目根目录执行：
+
+```powershell
+dotnet build WindowsBlueToothManager.sln
+dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
+```
+
+### 预期结果
+
+| 检查项 | 预期结果 |
+| --- | --- |
+| 默认数据源 | 启动后默认使用 `Windows 蓝牙/Windows Bluetooth` 数据源 |
+| 数据源菜单 | 在 `设置/Settings` -> `数据源/Data source` 中能看到 `Windows 蓝牙/Windows Bluetooth` 和 `模拟数据/Simulated data` |
+| 真实设备列表 | Windows 蓝牙数据源下，列表显示系统枚举到的蓝牙设备 |
+| 设备类型 | BLE 设备显示为 `BLE`，经典蓝牙设备显示为 `BTC` |
+| 连接状态 | 如果设备/驱动暴露连接状态，列表显示 Connected/已连接 或 Disconnected/已断开 |
+| 电量列 | 当前仍显示 Unknown/未知，这是预期结果，电量读取会在后续功能接入 |
+| 模拟数据回退 | 切换到 `模拟数据/Simulated data` 后，列表回到 4 条模拟设备 |
+| 自动刷新 | 按设置中的刷新频率自动重新枚举真实设备 |
+
+### 常见问题排查
+
+| 问题 | 处理方式 |
+| --- | --- |
+| 真实设备列表为空 | 确认 Windows 蓝牙已开启，并且系统设置中能看到已配对或已连接设备 |
+| 只看到 BLE 或只看到 BTC | 取决于当前 Windows API 能枚举到的设备类型，先记录设备型号，后续适配时补充 |
+| 连接状态不准确 | 当前读取 `System.Devices.Aep.IsConnected`，部分设备或驱动可能不暴露该属性，需要后续真实设备兼容性验证 |
+| 电量是 Unknown/未知 | 当前功能尚未实现电量读取，这是预期结果 |
+| 枚举失败或状态栏显示错误 | 将错误文本记录下来，用于后续补充异常日志和兼容性处理 |
+
+### 当前验证状态
+
+| 项目 | 状态 | 备注 |
+| --- | --- | --- |
+| Windows 蓝牙枚举服务 | 已完成 | 已新增 `WindowsBluetoothDeviceEnumerator` |
+| BLE 枚举 | 已完成，待调试确认 | 使用 `BluetoothLEDevice.GetDeviceSelector()` |
+| BTC 枚举 | 已完成，待调试确认 | 使用 `BluetoothDevice.GetDeviceSelector()` |
+| 连接状态读取 | 部分完成，待调试确认 | 使用 `System.Devices.Aep.IsConnected`，真实设备兼容性待验证 |
+| UI 数据源切换 | 已完成，待调试确认 | 可在设置菜单切换 Windows 蓝牙和模拟数据 |
+| 本机静态检查 | 已完成 | 当前环境可做 XML/XAML 格式检查，但不能运行 Windows 蓝牙 API |
 | 用户 Windows 调试确认 | 待确认 | 需要用户按本文档在 Windows 10/11 上验证 |

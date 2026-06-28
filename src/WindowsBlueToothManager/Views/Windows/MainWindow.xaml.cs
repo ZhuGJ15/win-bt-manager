@@ -20,6 +20,7 @@ public partial class MainWindow : Window
         ApplyRefreshTimerInterval();
         _refreshTimer.Start();
         ApplyColumnHeaders();
+        _ = _viewModel.RefreshDevicesAsync();
     }
 
     protected override void OnClosed(EventArgs e)
@@ -60,6 +61,16 @@ public partial class MainWindow : Window
         _viewModel.SetRefreshInterval(TimeSpan.FromMinutes(1));
     }
 
+    private async void WindowsBluetoothSourceMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        await _viewModel.SetDataSourceModeAsync(DeviceDataSourceMode.WindowsBluetooth);
+    }
+
+    private async void SimulatedSourceMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        await _viewModel.SetDataSourceModeAsync(DeviceDataSourceMode.Simulated);
+    }
+
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(MainWindowViewModel.DeviceHeaderText)
@@ -97,8 +108,8 @@ public partial class MainWindow : Window
         _refreshTimer.Interval = _viewModel.SelectedRefreshInterval;
     }
 
-    private void OnRefreshTimerTick(object? sender, EventArgs e)
+    private async void OnRefreshTimerTick(object? sender, EventArgs e)
     {
-        _viewModel.RefreshDevices();
+        await _viewModel.RefreshDevicesAsync();
     }
 }
