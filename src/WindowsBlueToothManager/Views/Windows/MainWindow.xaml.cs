@@ -1,6 +1,7 @@
 using System.Windows;
 using System.ComponentModel;
 using System.Windows.Threading;
+using WindowsBlueToothManager.Infrastructure.Configuration;
 using WindowsBlueToothManager.Models;
 using WindowsBlueToothManager.ViewModels;
 using WinForms = System.Windows.Forms;
@@ -36,13 +37,37 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(CancelEventArgs e)
     {
-        if (!_isExitRequested)
+        if (_isExitRequested)
+        {
+            base.OnClosing(e);
+            return;
+        }
+
+        if (_viewModel.CloseButtonBehavior == CloseButtonBehavior.Ask)
+        {
+            var result = ShowCloseBehaviorPrompt();
+            if (result == CloseButtonBehavior.MinimizeToTray)
+            {
+                _viewModel.SetCloseButtonBehavior(CloseButtonBehavior.MinimizeToTray);
+                e.Cancel = true;
+                Hide();
+                return;
+            }
+
+            _viewModel.SetCloseButtonBehavior(CloseButtonBehavior.ExitApplication);
+            _isExitRequested = true;
+            base.OnClosing(e);
+            return;
+        }
+
+        if (_viewModel.CloseButtonBehavior == CloseButtonBehavior.MinimizeToTray)
         {
             e.Cancel = true;
             Hide();
             return;
         }
 
+        _isExitRequested = true;
         base.OnClosing(e);
     }
 
@@ -97,6 +122,21 @@ public partial class MainWindow : Window
     private async void SimulatedSourceMenuItem_Click(object sender, RoutedEventArgs e)
     {
         await _viewModel.SetDataSourceModeAsync(DeviceDataSourceMode.Simulated);
+    }
+
+    private void AskCloseBehaviorMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SetCloseButtonBehavior(CloseButtonBehavior.Ask);
+    }
+
+    private void MinimizeToTrayCloseBehaviorMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SetCloseButtonBehavior(CloseButtonBehavior.MinimizeToTray);
+    }
+
+    private void ExitCloseBehaviorMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SetCloseButtonBehavior(CloseButtonBehavior.ExitApplication);
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -209,6 +249,25 @@ public partial class MainWindow : Window
     {
         _isExitRequested = true;
         Close();
+    }
+
+    private CloseButtonBehavior ShowCloseBehaviorPrompt()
+    {
+        var isChinese = _viewModel.CurrentLanguage == AppLanguage.Chinese;
+        var message = isChinese
+            ? "关闭主窗口时，你希望应用后台运行还是直接退出？\n\n选择“是”：后台运行，并记住此选择。\n选择“否”：直接退出应用，并记住此选择。\n\n之后可在“设置 -> 关闭按钮行为”中修改。"
+            : "When closing the main window, should the app keep running in the background or exit?\n\nChoose Yes: run in background and remember this choice.\nChoose No: exit the app and remember this choice.\n\nYou can change this later from Settings -> Close button behavior.";
+        var title = isChinese ? "关闭按钮行为" : "Close button behavior";
+        var result = System.Windows.MessageBox.Show(
+            this,
+            message,
+            title,
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        return result == MessageBoxResult.Yes
+            ? CloseButtonBehavior.MinimizeToTray
+            : CloseButtonBehavior.ExitApplication;
     }
 
     private void OnDevicesCollectionChanged(object? sender, EventArgs e)

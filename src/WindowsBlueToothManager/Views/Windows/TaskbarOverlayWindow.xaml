@@ -13,12 +13,26 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     </Window.Resources>
 
-    <Border Background="#20242B"
-            BorderBrush="#3A414C"
-            BorderThickness="1"
-            CornerRadius="6"
-            Padding="6,4">
-        <Grid>
+    <Grid Background="Transparent">
+        <Border Width="104"
+                Height="34"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Padding="6,2"
+                Background="#2B313A"
+                BorderBrush="#434B57"
+                BorderThickness="1"
+                CornerRadius="5">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding HasTaskbarOverlayDevices}" Value="False">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
             <TextBlock Text="{Binding TaskbarOverlayPlaceholderText}"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"
@@ -26,57 +40,46 @@
                        FontWeight="SemiBold"
                        LineHeight="12"
                        TextAlignment="Center"
-                       Foreground="#E5E7EB">
-                <TextBlock.Style>
-                    <Style TargetType="TextBlock">
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding HasTaskbarOverlayDevices}" Value="False">
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </TextBlock.Style>
-            </TextBlock>
+                       Foreground="#E5E7EB" />
+        </Border>
 
-            <ItemsControl x:Name="OverlayItems"
-                          ItemsSource="{Binding TaskbarOverlayDevices}"
-                          Visibility="{Binding HasTaskbarOverlayDevices, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal"
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Width="104"
-                                Height="34"
-                                Margin="0,0,6,0"
-                                Padding="6,2"
-                                Background="#2B313A"
-                                BorderBrush="#434B57"
-                                BorderThickness="1"
-                                CornerRadius="5">
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Name}"
-                                           FontSize="10"
-                                           FontWeight="SemiBold"
-                                           Foreground="#F8FAFC"
-                                           TextAlignment="Center"
-                                           TextTrimming="CharacterEllipsis" />
-                                <TextBlock Margin="0,1,0,0"
-                                           Text="{Binding BatteryText}"
-                                           FontSize="12"
-                                           FontWeight="Bold"
-                                           Foreground="{Binding BatteryProgressBrush}"
-                                           TextAlignment="Center" />
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </Grid>
-    </Border>
+        <ItemsControl x:Name="OverlayItems"
+                      ItemsSource="{Binding TaskbarOverlayDevices}"
+                      Visibility="{Binding HasTaskbarOverlayDevices, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Width="104"
+                            Height="34"
+                            Margin="0,0,6,0"
+                            Padding="6,2"
+                            Background="#2B313A"
+                            BorderBrush="#434B57"
+                            BorderThickness="1"
+                            CornerRadius="5">
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}"
+                                       FontSize="10"
+                                       FontWeight="SemiBold"
+                                       Foreground="#F8FAFC"
+                                       TextAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Margin="0,1,0,0"
+                                       Text="{Binding BatteryText}"
+                                       FontSize="12"
+                                       FontWeight="Bold"
+                                       Foreground="{Binding BatteryProgressBrush}"
+                                       TextAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </Grid>
 </Window>

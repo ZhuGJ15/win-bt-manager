@@ -23,6 +23,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private DateTime _lastRefreshAt;
     private LanguageOption _selectedLanguageOption;
     private TimeSpan _selectedRefreshInterval = TimeSpan.FromSeconds(5);
+    private CloseButtonBehavior _closeButtonBehavior = CloseButtonBehavior.Ask;
     private DeviceDataSourceMode _selectedDataSourceMode = DeviceDataSourceMode.WindowsBluetooth;
     private bool _isRefreshing;
     private string? _lastErrorMessage;
@@ -31,6 +32,7 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         var settings = _settingsStore.Load();
         _selectedRefreshInterval = NormalizeRefreshInterval(TimeSpan.FromSeconds(settings.RefreshIntervalSeconds));
+        _closeButtonBehavior = NormalizeCloseButtonBehavior(settings.CloseButtonBehavior);
         LanguageOptions = new ObservableCollection<LanguageOption>
         {
             new(AppLanguage.Chinese, "中文"),
@@ -92,6 +94,18 @@ public sealed class MainWindowViewModel : ObservableObject
                 NotifyDataSourcePropertiesChanged();
                 OnPropertyChanged(nameof(StatusText));
                 OnPropertyChanged(nameof(FooterText));
+            }
+        }
+    }
+
+    public CloseButtonBehavior CloseButtonBehavior
+    {
+        get => _closeButtonBehavior;
+        private set
+        {
+            if (SetProperty(ref _closeButtonBehavior, value))
+            {
+                NotifyCloseButtonBehaviorPropertiesChanged();
             }
         }
     }
@@ -188,6 +202,20 @@ public sealed class MainWindowViewModel : ObservableObject
     public string LanguageMenuText => Translate("语言", "Language");
 
     public string RefreshFrequencyMenuText => Translate("刷新频率", "Refresh frequency");
+
+    public string CloseButtonBehaviorMenuText => Translate("关闭按钮行为", "Close button behavior");
+
+    public string AskCloseBehaviorText => Translate("每次询问", "Ask every time");
+
+    public string MinimizeToTrayCloseBehaviorText => Translate("后台运行", "Run in background");
+
+    public string ExitCloseBehaviorText => Translate("直接退出应用", "Exit application");
+
+    public bool IsAskCloseBehaviorSelected => CloseButtonBehavior == CloseButtonBehavior.Ask;
+
+    public bool IsMinimizeToTrayCloseBehaviorSelected => CloseButtonBehavior == CloseButtonBehavior.MinimizeToTray;
+
+    public bool IsExitCloseBehaviorSelected => CloseButtonBehavior == CloseButtonBehavior.ExitApplication;
 
     public string DataSourceMenuText => Translate("数据源", "Data source");
 
@@ -360,6 +388,18 @@ public sealed class MainWindowViewModel : ObservableObject
         SaveSettings();
     }
 
+    public void SetCloseButtonBehavior(CloseButtonBehavior behavior)
+    {
+        if (CloseButtonBehavior == behavior)
+        {
+            NotifyCloseButtonBehaviorPropertiesChanged();
+            return;
+        }
+
+        CloseButtonBehavior = behavior;
+        SaveSettings();
+    }
+
     public async Task SetDataSourceModeAsync(DeviceDataSourceMode dataSourceMode)
     {
         if (SelectedDataSourceMode == dataSourceMode)
@@ -467,12 +507,17 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(SettingsMenuText));
         OnPropertyChanged(nameof(LanguageMenuText));
         OnPropertyChanged(nameof(RefreshFrequencyMenuText));
+        OnPropertyChanged(nameof(CloseButtonBehaviorMenuText));
+        OnPropertyChanged(nameof(AskCloseBehaviorText));
+        OnPropertyChanged(nameof(MinimizeToTrayCloseBehaviorText));
+        OnPropertyChanged(nameof(ExitCloseBehaviorText));
         OnPropertyChanged(nameof(DataSourceMenuText));
         OnPropertyChanged(nameof(ChineseLanguageText));
         OnPropertyChanged(nameof(EnglishLanguageText));
         OnPropertyChanged(nameof(IsChineseLanguageSelected));
         OnPropertyChanged(nameof(IsEnglishLanguageSelected));
         NotifyRefreshIntervalPropertiesChanged();
+        NotifyCloseButtonBehaviorPropertiesChanged();
         NotifyDataSourcePropertiesChanged();
         OnPropertyChanged(nameof(ConnectedLabelText));
         OnPropertyChanged(nameof(ShownAtBottomLabelText));
@@ -516,6 +561,13 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsSimulatedSourceSelected));
     }
 
+    private void NotifyCloseButtonBehaviorPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(IsAskCloseBehaviorSelected));
+        OnPropertyChanged(nameof(IsMinimizeToTrayCloseBehaviorSelected));
+        OnPropertyChanged(nameof(IsExitCloseBehaviorSelected));
+    }
+
     private static TimeSpan NormalizeRefreshInterval(TimeSpan interval)
     {
         return SupportedRefreshIntervals.Contains(interval)
@@ -523,11 +575,19 @@ public sealed class MainWindowViewModel : ObservableObject
             : TimeSpan.FromSeconds(5);
     }
 
+    private static CloseButtonBehavior NormalizeCloseButtonBehavior(CloseButtonBehavior behavior)
+    {
+        return Enum.IsDefined(typeof(CloseButtonBehavior), behavior)
+            ? behavior
+            : CloseButtonBehavior.Ask;
+    }
+
     private void SaveSettings()
     {
         _settingsStore.Save(new AppSettings
         {
-            RefreshIntervalSeconds = (int)SelectedRefreshInterval.TotalSeconds
+            RefreshIntervalSeconds = (int)SelectedRefreshInterval.TotalSeconds,
+            CloseButtonBehavior = this.CloseButtonBehavior
         });
     }
 

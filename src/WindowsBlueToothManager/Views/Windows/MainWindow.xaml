@@ -99,6 +99,21 @@
                                   IsChecked="{Binding IsRefresh1MinuteSelected, Mode=OneWay}"
                                   Click="Refresh1MinuteMenuItem_Click" />
                     </MenuItem>
+                    <Separator />
+                    <MenuItem Header="{Binding CloseButtonBehaviorMenuText}">
+                        <MenuItem Header="{Binding AskCloseBehaviorText}"
+                                  IsCheckable="True"
+                                  IsChecked="{Binding IsAskCloseBehaviorSelected, Mode=OneWay}"
+                                  Click="AskCloseBehaviorMenuItem_Click" />
+                        <MenuItem Header="{Binding MinimizeToTrayCloseBehaviorText}"
+                                  IsCheckable="True"
+                                  IsChecked="{Binding IsMinimizeToTrayCloseBehaviorSelected, Mode=OneWay}"
+                                  Click="MinimizeToTrayCloseBehaviorMenuItem_Click" />
+                        <MenuItem Header="{Binding ExitCloseBehaviorText}"
+                                  IsCheckable="True"
+                                  IsChecked="{Binding IsExitCloseBehaviorSelected, Mode=OneWay}"
+                                  Click="ExitCloseBehaviorMenuItem_Click" />
+                    </MenuItem>
                 </MenuItem>
             </Menu>
         </Border>
