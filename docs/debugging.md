@@ -372,6 +372,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 启动时弹出“任务栏嵌入失败” | 表示未找到 `Shell_TrayWnd` 任务栏容器，可能是 Explorer 未启动、第三方任务栏替换工具或当前环境不是标准 Windows 桌面 |
 | 只看到托盘图标，看不到底部电量 | 当前底部展示是独立 `TaskbarOverlayWindow`，不是 NotifyIcon；请确认构建产物包含 `TaskbarOverlayWindow.xaml`，并重新运行 |
 | 勾选 Bottom 后没有设备显示 | 等待一次自动刷新；如果仍没有，请确认设备列表中 Bottom 复选框处于勾选状态；任务栏窗口会按已勾选数量动态调整宽度 |
+| 右下角通知区域图标被遮住 | 已将任务栏 HWND 从整条任务栏大小改为实际内容块大小；重新构建后不应再覆盖托盘、时钟和隐藏图标区域 |
 | 位置靠近通知区域或应用图标 | 当前参考 `TrayNotifyWnd` 和 `TaskbarAl` 计算位置，但仍不能精确读取每个任务栏应用按钮位置；请记录任务栏位置、对齐方式、缩放比例和截图，后续继续调整 |
 | 多显示器上位置不符合预期 | 当前第一版只挂载主任务栏；多显示器任务栏后续实现 |
 

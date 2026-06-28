@@ -147,18 +147,19 @@ public partial class TaskbarOverlayWindow : Window
                 Height = Math.Min(46, Math.Max(38, taskbarHeight));
 
                 var dpiAdjustedWidth = (int)Math.Ceiling(Width * GetDpiScale());
+                var dpiAdjustedHeight = (int)Math.Ceiling(Height * GetDpiScale());
                 var x = alignment == 0
                     ? Math.Max(0, targetRect.Left - taskbarRect.Left - dpiAdjustedWidth)
                     : Math.Max(0, targetRect.Left - taskbarRect.Left);
-                var y = Math.Max(0, (taskbarHeight - (int)Math.Ceiling(Height * GetDpiScale())) / 2);
+                var y = Math.Max(0, (taskbarHeight - dpiAdjustedHeight) / 2);
 
                 SetWindowPos(
                     _windowHandle,
                     IntPtr.Zero,
                     x,
                     y,
-                    taskbarWidth,
-                    taskbarHeight,
+                    dpiAdjustedWidth,
+                    dpiAdjustedHeight,
                     SwpNoZOrder | SwpNoActivate | SwpShowWindow);
                 return;
             }
@@ -166,9 +167,18 @@ public partial class TaskbarOverlayWindow : Window
             OverlayItems.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
             Width = Math.Min(96, Math.Max(48, taskbarWidth));
             Height = Math.Min(220, Math.Max(120, displayDeviceCount * 48));
-            var verticalX = Math.Max(0, (taskbarWidth - (int)Math.Ceiling(Width * GetDpiScale())) / 2);
-            var verticalY = Math.Max(0, taskbarHeight - (int)Math.Ceiling(Height * GetDpiScale()) - VerticalTaskbarReservedHeight);
-            SetWindowPos(_windowHandle, IntPtr.Zero, verticalX, verticalY, taskbarWidth, taskbarHeight, SwpNoZOrder | SwpNoActivate | SwpShowWindow);
+            var dpiAdjustedVerticalWidth = (int)Math.Ceiling(Width * GetDpiScale());
+            var dpiAdjustedVerticalHeight = (int)Math.Ceiling(Height * GetDpiScale());
+            var verticalX = Math.Max(0, (taskbarWidth - dpiAdjustedVerticalWidth) / 2);
+            var verticalY = Math.Max(0, taskbarHeight - dpiAdjustedVerticalHeight - VerticalTaskbarReservedHeight);
+            SetWindowPos(
+                _windowHandle,
+                IntPtr.Zero,
+                verticalX,
+                verticalY,
+                dpiAdjustedVerticalWidth,
+                dpiAdjustedVerticalHeight,
+                SwpNoZOrder | SwpNoActivate | SwpShowWindow);
         }
         finally
         {
