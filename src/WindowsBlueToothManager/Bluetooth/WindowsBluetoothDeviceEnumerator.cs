@@ -35,7 +35,8 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
 
     private static readonly string[] EnumerationProperties =
     {
-        IsConnectedProperty
+        IsConnectedProperty,
+        DeviceAddressProperty
     };
 
     private static readonly string[] BatteryProperties =
@@ -94,7 +95,7 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
             throw new InvalidOperationException(string.Join("; ", enumerationErrors));
         }
 
-        return devices.Values
+        return DeduplicateDevices(devices.Values)
             .OrderByDescending(device => device.IsConnected)
             .ThenBy(device => device.Name, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
@@ -124,11 +125,13 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
                 var connectionState = ReadBooleanProperty(device, IsConnectedProperty);
                 var batteryReadResult = await ReadBatteryLevelAsync(device, deviceType, connectionState, cancellationToken);
                 var isConnected = connectionState ?? batteryReadResult.BatteryLevel.HasValue;
+                var address = await ReadBluetoothAddressAsync(device, deviceType, cancellationToken);
 
                 devices[device.Id] = new BluetoothDeviceInfo
                 {
                     DeviceId = device.Id,
                     Name = string.IsNullOrWhiteSpace(device.Name) ? "Unknown Bluetooth Device" : device.Name,
+                    Address = address,
                     DeviceType = deviceType,
                     IsConnected = isConnected,
                     BatteryLevel = batteryReadResult.BatteryLevel,
@@ -147,6 +150,68 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
         {
             enumerationErrors.Add($"{deviceType}: {exception.Message}");
         }
+    }
+
+    private static IReadOnlyList<BluetoothDeviceInfo> DeduplicateDevices(IEnumerable<BluetoothDeviceInfo> devices)
+    {
+        var deduplicatedDevices = devices
+            .GroupBy(GetAddressDeduplicationKey, StringComparer.OrdinalIgnoreCase)
+            .SelectMany(group => group.Key is null
+                ? group
+                : new[] { ChoosePreferredDevice(group) })
+            .ToList();
+
+        var result = new List<BluetoothDeviceInfo>();
+
+        foreach (var group in deduplicatedDevices.GroupBy(GetNameDeduplicationKey, StringComparer.OrdinalIgnoreCase))
+        {
+            var groupDevices = group.ToList();
+            var hasBleAndClassic = groupDevices.Any(device => device.DeviceType == DeviceType.Ble)
+                && groupDevices.Any(device => device.DeviceType == DeviceType.ClassicBluetooth);
+
+            if (!string.IsNullOrWhiteSpace(group.Key) && hasBleAndClassic)
+            {
+                result.Add(ChoosePreferredDevice(groupDevices));
+                continue;
+            }
+
+            result.AddRange(groupDevices);
+        }
+
+        return result;
+    }
+
+    private static BluetoothDeviceInfo ChoosePreferredDevice(IEnumerable<BluetoothDeviceInfo> devices)
+    {
+        return devices
+            .OrderByDescending(device => device.BatteryLevel.HasValue)
+            .ThenByDescending(device => device.IsConnected)
+            .ThenByDescending(device => device.DeviceType == DeviceType.ClassicBluetooth)
+            .ThenBy(device => device.Name, StringComparer.CurrentCultureIgnoreCase)
+            .First();
+    }
+
+    private static string? GetAddressDeduplicationKey(BluetoothDeviceInfo device)
+    {
+        if (string.IsNullOrWhiteSpace(device.Address))
+        {
+            return null;
+        }
+
+        var normalizedAddress = NormalizeBluetoothAddress(device.Address);
+        return normalizedAddress.Length == 12 ? normalizedAddress : null;
+    }
+
+    private static string? GetNameDeduplicationKey(BluetoothDeviceInfo device)
+    {
+        if (string.Equals(device.Name, "Unknown Bluetooth Device", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return string.IsNullOrWhiteSpace(device.Name)
+            ? null
+            : device.Name.Trim().ToLowerInvariant();
     }
 
     private static async Task<IReadOnlyList<DeviceInformation>> FindAllDevicesAsync(
@@ -206,6 +271,59 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
         }
 
         return BatteryReadResult.Unavailable("Battery unavailable");
+    }
+
+    private static async Task<string?> ReadBluetoothAddressAsync(
+        DeviceInformation device,
+        DeviceType deviceType,
+        CancellationToken cancellationToken)
+    {
+        var propertyAddress = GetStringProperty(device.Properties, DeviceAddressProperty);
+        if (!string.IsNullOrWhiteSpace(propertyAddress))
+        {
+            return NormalizeBluetoothAddress(propertyAddress);
+        }
+
+        var idAddress = ReadBluetoothAddressFromDeviceId(device.Id);
+        if (!string.IsNullOrWhiteSpace(idAddress))
+        {
+            return idAddress;
+        }
+
+        return deviceType switch
+        {
+            DeviceType.Ble => await ReadBleBluetoothAddressAsync(device.Id, cancellationToken),
+            DeviceType.ClassicBluetooth => await ReadClassicBluetoothAddressAsync(device.Id, cancellationToken),
+            _ => null
+        };
+    }
+
+    private static string? ReadBluetoothAddressFromDeviceId(string deviceId)
+    {
+        var normalizedId = NormalizeBluetoothAddress(deviceId);
+        return normalizedId.Length >= 12 ? normalizedId[^12..] : null;
+    }
+
+    private static async Task<string?> ReadBleBluetoothAddressAsync(
+        string deviceId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var bluetoothDevice = await BluetoothLEDevice.FromIdAsync(deviceId);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            return bluetoothDevice?.BluetoothAddress.ToString("x12");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static async Task<int?> ReadBleBatteryLevelWithTimeoutAsync(

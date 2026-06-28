@@ -175,6 +175,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 数据源菜单 | 在 `设置/Settings` -> `数据源/Data source` 中能看到 `Windows 蓝牙/Windows Bluetooth` 和 `模拟数据/Simulated data` |
 | 真实设备列表 | Windows 蓝牙数据源下，列表显示系统枚举到的蓝牙设备 |
 | 设备类型 | BLE 设备显示为 `BLE`，经典蓝牙设备显示为 `BTC` |
+| 同一设备去重 | 如果同一物理设备先被识别为 BLE、后又被识别为 BTC，列表中应只保留一条更可信记录 |
 | 连接状态 | 如果设备/驱动暴露连接状态，列表显示 Connected/已连接 或 Disconnected/已断开 |
 | 电量列 | 支持标准 Battery Service 的已连接 BLE 设备可显示百分比；其他暂未读取到电量的已连接设备显示“待获取/Pending”；已断开设备显示 `-1` |
 | 模拟数据回退 | 切换到 `模拟数据/Simulated data` 后，列表回到 4 条模拟设备 |
@@ -186,6 +187,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | --- | --- |
 | 真实设备列表为空 | 确认 Windows 蓝牙已开启，并且系统设置中能看到已配对或已连接设备 |
 | 只看到 BLE 或只看到 BTC | 取决于当前 Windows API 能枚举到的设备类型，先记录设备型号，后续适配时补充 |
+| 同一设备出现 BLE 和 BTC 两条记录 | 已按蓝牙地址去重，地址缺失时按同名 BLE/BTC 谨慎合并；如果仍重复，请记录两条记录的设备名、类型和电量状态 |
 | 连接状态不准确 | 当前读取 `System.Devices.Aep.IsConnected`，部分设备或驱动可能不暴露该属性，需要后续真实设备兼容性验证 |
 | 已断开设备连接后电量仍是 `-1` | 等待一次自动刷新，或临时将刷新频率切到 5s；刷新后如果连接状态变为 Connected/已连接，电量应从 `-1` 变为“待获取/Pending” |
 | 枚举失败或状态栏显示错误 | 将错误文本记录下来，用于后续补充异常日志和兼容性处理 |
@@ -199,6 +201,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | BTC 枚举 | 已完成，待调试确认 | 使用 `BluetoothDevice.GetDeviceSelector()` |
 | 连接状态读取 | 部分完成，待调试确认 | 使用 `System.Devices.Aep.IsConnected`，真实设备兼容性待验证 |
 | UI 数据源切换 | 已完成，待调试确认 | 可在设置菜单切换 Windows 蓝牙和模拟数据 |
+| 同一物理设备去重 | 已完成，待调试确认 | 优先按蓝牙地址合并 BLE/BTC 双记录，地址缺失时合并同名 BLE/BTC，并优先保留有电量、已连接、BTC 类型的记录 |
 | 本机静态检查 | 已完成 | 当前环境可做 XML/XAML 格式检查，但不能运行 Windows 蓝牙 API |
 | 用户 Windows 调试确认 | 待确认 | 需要用户按本文档在 Windows 10/11 上验证 |
 

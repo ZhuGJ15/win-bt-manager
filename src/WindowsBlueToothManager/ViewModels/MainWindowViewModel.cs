@@ -263,9 +263,29 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         var now = DateTime.Now;
-        var displayPreferences = Devices.ToDictionary(
+        var displayPreferencesByDeviceId = Devices.ToDictionary(
             device => device.DeviceId,
             device => (device.ShowInTaskbarOverlay, device.ShowInTray));
+        var displayPreferencesByAddress = Devices
+            .Where(device => !string.IsNullOrWhiteSpace(device.Address))
+            .GroupBy(device => NormalizePreferenceKey(device.Address))
+            .ToDictionary(
+                group => group.Key,
+                group =>
+                {
+                    var device = group.First();
+                    return (device.ShowInTaskbarOverlay, device.ShowInTray);
+                });
+        var displayPreferencesByName = Devices
+            .Where(device => !string.IsNullOrWhiteSpace(device.Name))
+            .GroupBy(device => NormalizePreferenceKey(device.Name))
+            .ToDictionary(
+                group => group.Key,
+                group =>
+                {
+                    var device = group.First();
+                    return (device.ShowInTaskbarOverlay, device.ShowInTray);
+                });
 
         try
         {
@@ -280,7 +300,12 @@ public sealed class MainWindowViewModel : ObservableObject
             foreach (var device in devices)
             {
                 var deviceToDisplay = device;
-                if (displayPreferences.TryGetValue(device.DeviceId, out var preference))
+                if (TryGetDisplayPreference(
+                    device,
+                    displayPreferencesByDeviceId,
+                    displayPreferencesByAddress,
+                    displayPreferencesByName,
+                    out var preference))
                 {
                     deviceToDisplay = device with
                     {
@@ -492,5 +517,38 @@ public sealed class MainWindowViewModel : ObservableObject
         {
             RefreshIntervalSeconds = (int)SelectedRefreshInterval.TotalSeconds
         });
+    }
+
+    private static bool TryGetDisplayPreference(
+        BluetoothDeviceInfo device,
+        IReadOnlyDictionary<string, (bool ShowInTaskbarOverlay, bool ShowInTray)> preferencesByDeviceId,
+        IReadOnlyDictionary<string, (bool ShowInTaskbarOverlay, bool ShowInTray)> preferencesByAddress,
+        IReadOnlyDictionary<string, (bool ShowInTaskbarOverlay, bool ShowInTray)> preferencesByName,
+        out (bool ShowInTaskbarOverlay, bool ShowInTray) preference)
+    {
+        if (preferencesByDeviceId.TryGetValue(device.DeviceId, out preference))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(device.Address)
+            && preferencesByAddress.TryGetValue(NormalizePreferenceKey(device.Address), out preference))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(device.Name)
+            && preferencesByName.TryGetValue(NormalizePreferenceKey(device.Name), out preference))
+        {
+            return true;
+        }
+
+        preference = default;
+        return false;
+    }
+
+    private static string NormalizePreferenceKey(string? value)
+    {
+        return value?.Trim().ToLowerInvariant() ?? string.Empty;
     }
 }

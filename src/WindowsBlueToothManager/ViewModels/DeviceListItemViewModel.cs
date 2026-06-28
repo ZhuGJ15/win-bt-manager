@@ -12,6 +12,7 @@ public sealed class DeviceListItemViewModel : ObservableObject
     {
         DeviceId = device.DeviceId;
         Name = device.Name;
+        Address = device.Address;
         DeviceType = device.DeviceType;
         IsConnected = device.IsConnected;
         BatteryLevel = device.BatteryLevel;
@@ -25,6 +26,8 @@ public sealed class DeviceListItemViewModel : ObservableObject
     public string DeviceId { get; }
 
     public string Name { get; }
+
+    public string? Address { get; }
 
     public DeviceType DeviceType { get; }
 

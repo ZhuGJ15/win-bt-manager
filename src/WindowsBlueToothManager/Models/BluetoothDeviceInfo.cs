@@ -6,6 +6,8 @@ public sealed record BluetoothDeviceInfo
 
     public required string Name { get; init; }
 
+    public string? Address { get; init; }
+
     public required DeviceType DeviceType { get; init; }
 
     public required bool IsConnected { get; init; }
