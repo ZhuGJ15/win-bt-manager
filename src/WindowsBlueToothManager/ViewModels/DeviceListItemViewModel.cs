@@ -83,7 +83,18 @@ public sealed class DeviceListItemViewModel : ObservableObject
         ? Translate("已连接", "Connected")
         : Translate("已断开", "Disconnected");
 
-    public string BatteryText => BatteryLevel.HasValue ? $"{BatteryLevel.Value}%" : Translate("未知", "Unknown");
+    public string BatteryText
+    {
+        get
+        {
+            if (BatteryLevel.HasValue)
+            {
+                return $"{BatteryLevel.Value}%";
+            }
+
+            return IsConnected ? Translate("待获取", "Pending") : "-1";
+        }
+    }
 
     public int BatteryProgressValue => BatteryLevel ?? 0;
 
@@ -93,7 +104,9 @@ public sealed class DeviceListItemViewModel : ObservableObject
         {
             if (!BatteryLevel.HasValue)
             {
-                return Translate("电量读取失败", "Battery unavailable");
+                return IsConnected
+                    ? Translate("等待电量读取", "Waiting for battery reading")
+                    : Translate("无法获取电量", "Battery unavailable");
             }
 
             return BatteryLevel.Value < 20 ? Translate("低电量", "Low battery") : Translate("正常", "Normal");

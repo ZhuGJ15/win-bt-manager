@@ -2,13 +2,23 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using WindowsBlueToothManager.Bluetooth;
 using WindowsBlueToothManager.Bluetooth.Abstractions;
+using WindowsBlueToothManager.Infrastructure.Configuration;
 using WindowsBlueToothManager.Models;
 
 namespace WindowsBlueToothManager.ViewModels;
 
 public sealed class MainWindowViewModel : ObservableObject
 {
+    private static readonly TimeSpan[] SupportedRefreshIntervals =
+    {
+        TimeSpan.FromSeconds(5),
+        TimeSpan.FromSeconds(10),
+        TimeSpan.FromSeconds(30),
+        TimeSpan.FromMinutes(1)
+    };
+
     private readonly IBluetoothDeviceEnumerator _windowsBluetoothDeviceEnumerator = new WindowsBluetoothDeviceEnumerator();
+    private readonly AppSettingsStore _settingsStore = new();
     private readonly Random _random = new();
     private DateTime _lastRefreshAt;
     private LanguageOption _selectedLanguageOption;
@@ -19,6 +29,8 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public MainWindowViewModel()
     {
+        var settings = _settingsStore.Load();
+        _selectedRefreshInterval = NormalizeRefreshInterval(TimeSpan.FromSeconds(settings.RefreshIntervalSeconds));
         LanguageOptions = new ObservableCollection<LanguageOption>
         {
             new(AppLanguage.Chinese, "中文"),
@@ -310,7 +322,8 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
         }
 
-        SelectedRefreshInterval = interval;
+        SelectedRefreshInterval = NormalizeRefreshInterval(interval);
+        SaveSettings();
     }
 
     public async Task SetDataSourceModeAsync(DeviceDataSourceMode dataSourceMode)
@@ -464,5 +477,20 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(SimulatedSourceText));
         OnPropertyChanged(nameof(IsWindowsBluetoothSourceSelected));
         OnPropertyChanged(nameof(IsSimulatedSourceSelected));
+    }
+
+    private static TimeSpan NormalizeRefreshInterval(TimeSpan interval)
+    {
+        return SupportedRefreshIntervals.Contains(interval)
+            ? interval
+            : TimeSpan.FromSeconds(5);
+    }
+
+    private void SaveSettings()
+    {
+        _settingsStore.Save(new AppSettings
+        {
+            RefreshIntervalSeconds = (int)SelectedRefreshInterval.TotalSeconds
+        });
     }
 }

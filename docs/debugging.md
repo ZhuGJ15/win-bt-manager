@@ -108,10 +108,11 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 统计区域 | 显示 Connected、Shown at bottom、Low battery 三个统计值 |
 | 设备列表 | 至少显示 4 条模拟设备数据 |
 | 设备类型 | 列表中能看到 BLE、BTC、Unknown |
-| 电量展示 | 有百分比、进度条、低电量提示和 Unknown 电量 |
+| 电量展示 | 有百分比、进度条、低电量提示；已断开设备显示 `-1` 和“无法获取电量/Battery unavailable”；已连接但暂未读取电量时显示“待获取/Pending” |
 | 展示开关 | 勾选或取消 Bottom/Tray 后，统计值和 Display 列会更新 |
 | 刷新频率 | 在顶部菜单栏打开 `设置/Settings` -> `刷新频率/Refresh frequency`，可选择 5s、10s、30s、1min |
-| 自动刷新 | 选择刷新频率后，等待对应时间，更新时间变化，部分模拟电量会小幅变化 |
+| 自动刷新 | 选择刷新频率后，等待对应时间，更新时间变化，当前数据源会自动刷新 |
+| 刷新频率持久化 | 修改刷新频率后关闭应用，再重新启动，菜单勾选项应保持为上次选择 |
 | 中英文切换 | 在顶部菜单栏打开 `设置/Settings` -> `语言/Language`，切换 `中文` 和 `English` 后，按钮、统计卡片、表格列名、状态文案、底部提示和设备状态会切换语言 |
 
 ### 常见问题排查
@@ -125,6 +126,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 勾选 Bottom/Tray 后统计不变 | 确认点击的是复选框本身，或切换单元格后观察统计区域 |
 | 刷新后 Bottom/Tray 勾选被重置 | 已在刷新时保留设备展示偏好；如仍重置，检查 `RefreshDevicesAsync()` 是否保留旧设备偏好 |
 | 刷新频率切换后没有自动刷新 | 确认 `MainWindow.xaml.cs` 中启动了 `DispatcherTimer`，且 `SelectedRefreshInterval` 改变时调用了 `ApplyRefreshTimerInterval()` |
+| 重新启动后刷新频率没有保留 | 确认 `%AppData%/WindowsBlueToothManager/settings.json` 存在，并且 `RefreshIntervalSeconds` 是 5、10、30 或 60 |
 | 切换语言后表格列名不变 | 确认 `MainWindow.xaml.cs` 中调用了 `ApplyColumnHeaders()`，DataGrid 列头需要通过代码同步更新 |
 | 真实蓝牙设备没有出现 | 确认当前数据源是 `Windows 蓝牙/Windows Bluetooth`，并参考功能 3 的设备枚举排查项 |
 
@@ -137,7 +139,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | BatteryProgressValue 绑定修复 | 已完成 | 已将电量进度条只读属性绑定修正为单向绑定 |
 | 中英文切换 | 已完成 | 已增加顶部菜单栏，并将语言切换放到 `设置/Settings` 菜单下 |
 | 顶部菜单栏优化 | 已完成 | 已增大菜单栏和菜单项尺寸，提高可见性 |
-| 刷新频率设置 | 已完成 | 已移除刷新按钮，改为 `设置/Settings` -> `刷新频率/Refresh frequency`，支持 5s、10s、30s、1min 自动刷新 |
+| 刷新频率设置 | 已完成 | 已移除刷新按钮，改为 `设置/Settings` -> `刷新频率/Refresh frequency`，支持 5s、10s、30s、1min 自动刷新，并记住用户选择 |
 | 本机静态检查 | 已完成 | 当前环境可做 XML/XAML 格式检查，但不能运行 WPF |
 | 用户 Windows 调试确认 | 已完成 | 用户已确认该阶段优化暂时结束 |
 
@@ -174,7 +176,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 真实设备列表 | Windows 蓝牙数据源下，列表显示系统枚举到的蓝牙设备 |
 | 设备类型 | BLE 设备显示为 `BLE`，经典蓝牙设备显示为 `BTC` |
 | 连接状态 | 如果设备/驱动暴露连接状态，列表显示 Connected/已连接 或 Disconnected/已断开 |
-| 电量列 | 当前仍显示 Unknown/未知，这是预期结果，电量读取会在后续功能接入 |
+| 电量列 | 已断开设备显示 `-1`，状态文案显示“无法获取电量/Battery unavailable”；已连接但暂未读取电量时显示“待获取/Pending”，这是当前未接入电量读取前的预期结果 |
 | 模拟数据回退 | 切换到 `模拟数据/Simulated data` 后，列表回到 4 条模拟设备 |
 | 自动刷新 | 按设置中的刷新频率自动重新枚举真实设备 |
 
@@ -185,7 +187,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 真实设备列表为空 | 确认 Windows 蓝牙已开启，并且系统设置中能看到已配对或已连接设备 |
 | 只看到 BLE 或只看到 BTC | 取决于当前 Windows API 能枚举到的设备类型，先记录设备型号，后续适配时补充 |
 | 连接状态不准确 | 当前读取 `System.Devices.Aep.IsConnected`，部分设备或驱动可能不暴露该属性，需要后续真实设备兼容性验证 |
-| 电量是 Unknown/未知 | 当前功能尚未实现电量读取，这是预期结果 |
+| 已断开设备连接后电量仍是 `-1` | 等待一次自动刷新，或临时将刷新频率切到 5s；刷新后如果连接状态变为 Connected/已连接，电量应从 `-1` 变为“待获取/Pending” |
 | 枚举失败或状态栏显示错误 | 将错误文本记录下来，用于后续补充异常日志和兼容性处理 |
 
 ### 当前验证状态
