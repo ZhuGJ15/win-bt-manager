@@ -15,7 +15,9 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     </Window.Resources>
 
-    <Grid Background="Transparent">
+    <Grid x:Name="OverlayRoot"
+          Background="Transparent"
+          ClipToBounds="True">
         <Border Width="50"
                 Height="36"
                 HorizontalAlignment="Center"
@@ -46,6 +48,7 @@
         </Border>
 
         <ItemsControl x:Name="OverlayItems"
+                      ClipToBounds="True"
                       ItemsSource="{Binding TaskbarOverlayDevices}"
                       Visibility="{Binding HasTaskbarOverlayDevices, Converter={StaticResource BooleanToVisibilityConverter}}">
             <ItemsControl.ItemsPanel>

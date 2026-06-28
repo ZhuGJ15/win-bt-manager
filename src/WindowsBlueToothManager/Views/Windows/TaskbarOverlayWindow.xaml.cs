@@ -176,6 +176,7 @@ public partial class TaskbarOverlayWindow : Window
 
                 Width = CalculateHorizontalOverlayWidth(displayDeviceCount);
                 Height = Math.Min(DeviceTileHeight + 2, Math.Max(DeviceTileHeight, taskbarHeight));
+                SynchronizeInnerLayoutSize(Width, Height);
 
                 var dpiAdjustedWidth = (int)Math.Ceiling(Width * GetDpiScale());
                 var dpiAdjustedHeight = (int)Math.Ceiling(Height * GetDpiScale());
@@ -198,6 +199,7 @@ public partial class TaskbarOverlayWindow : Window
             OverlayItems.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
             Width = DeviceTileWidth + DeviceTileHorizontalMargin * 2;
             Height = Math.Min(220, Math.Max(DeviceTileHeight, displayDeviceCount * (DeviceTileHeight + 4)));
+            SynchronizeInnerLayoutSize(Width, Height);
             var dpiAdjustedVerticalWidth = (int)Math.Ceiling(Width * GetDpiScale());
             var dpiAdjustedVerticalHeight = (int)Math.Ceiling(Height * GetDpiScale());
             var verticalX = Math.Max(0, (taskbarWidth - dpiAdjustedVerticalWidth) / 2);
@@ -220,6 +222,14 @@ public partial class TaskbarOverlayWindow : Window
     private static int CalculateHorizontalOverlayWidth(int displayDeviceCount)
     {
         return displayDeviceCount * (DeviceTileWidth + DeviceTileHorizontalMargin * 2);
+    }
+
+    private void SynchronizeInnerLayoutSize(double width, double height)
+    {
+        OverlayRoot.Width = width;
+        OverlayRoot.Height = height;
+        OverlayItems.Width = width;
+        OverlayItems.Height = height;
     }
 
     private Rect GetTaskbarTargetRect(int alignment)
