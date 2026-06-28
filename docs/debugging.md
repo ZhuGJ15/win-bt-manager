@@ -244,6 +244,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | --- | --- |
 | BLE 设备仍显示 `待获取/Pending` | 确认设备已连接，并确认该设备是否支持标准 GATT Battery Service |
 | Windows 设置里能看到电量，但应用显示待获取 | 该设备可能通过厂商驱动或非标准接口暴露电量，需要后续多策略读取适配 |
+| `CS0121 Math.Clamp(byte, byte, byte) 和 Math.Clamp(int, int, int) 调用具有二义性` | 已将 `DataReader.ReadByte()` 的返回值显式转换为 `int` 后再调用 `Math.Clamp` |
 | 读取时界面短暂显示刷新中 | BLE 电量读取有 3 秒单设备超时，这是为了避免单个设备卡住刷新 |
 | BTC 设备没有电量 | 当前功能未实现 BTC 电量读取，后续会单独处理 |
 

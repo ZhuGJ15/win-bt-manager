@@ -148,7 +148,8 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
             }
 
             var reader = DataReader.FromBuffer(readResult.Value);
-            return Math.Clamp(reader.ReadByte(), 0, 100);
+            var batteryLevel = (int)reader.ReadByte();
+            return Math.Clamp(batteryLevel, 0, 100);
         }
         catch
         {
