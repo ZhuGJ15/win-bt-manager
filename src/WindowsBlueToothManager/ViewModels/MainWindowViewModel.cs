@@ -8,15 +8,48 @@ public sealed class MainWindowViewModel : ObservableObject
 {
     private readonly Random _random = new();
     private DateTime _lastRefreshAt;
-    private string _statusText = string.Empty;
+    private LanguageOption _selectedLanguageOption;
 
     public MainWindowViewModel()
     {
+        LanguageOptions = new ObservableCollection<LanguageOption>
+        {
+            new(AppLanguage.Chinese, "中文"),
+            new(AppLanguage.English, "English")
+        };
+        _selectedLanguageOption = LanguageOptions[0];
         Devices.CollectionChanged += OnDevicesChanged;
         RefreshDevices();
     }
 
+    public ObservableCollection<LanguageOption> LanguageOptions { get; }
+
     public ObservableCollection<DeviceListItemViewModel> Devices { get; } = new();
+
+    public LanguageOption SelectedLanguageOption
+    {
+        get => _selectedLanguageOption;
+        set
+        {
+            if (value is null)
+            {
+                return;
+            }
+
+            if (SetProperty(ref _selectedLanguageOption, value))
+            {
+                foreach (var device in Devices)
+                {
+                    device.Language = CurrentLanguage;
+                }
+
+                NotifyLocalizedTextChanged();
+                NotifySummaryChanged();
+            }
+        }
+    }
+
+    public AppLanguage CurrentLanguage => SelectedLanguageOption.Language;
 
     public DateTime LastRefreshAt
     {
@@ -31,14 +64,10 @@ public sealed class MainWindowViewModel : ObservableObject
     }
 
     public string LastRefreshText => LastRefreshAt == default
-        ? "Not refreshed"
-        : LastRefreshAt.ToString("yyyy-MM-dd HH:mm:ss");
+        ? Translate("未刷新", "Not refreshed")
+        : $"{Translate("最后刷新", "Last refresh")}: {LastRefreshAt:yyyy-MM-dd HH:mm:ss}";
 
-    public string StatusText
-    {
-        get => _statusText;
-        private set => SetProperty(ref _statusText, value);
-    }
+    public string StatusText => Translate("正在显示模拟蓝牙设备数据。", "Displaying simulated Bluetooth device data.");
 
     public int ConnectedDeviceCount => Devices.Count(device => device.IsConnected);
 
@@ -46,8 +75,41 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public int LowBatteryDeviceCount => Devices.Count(device => device.BatteryLevel is < 20);
 
-    public string SummaryText =>
-        $"{ConnectedDeviceCount} connected, {OverlayDeviceCount} shown at bottom, {LowBatteryDeviceCount} low battery";
+    public string SummaryText => CurrentLanguage == AppLanguage.Chinese
+        ? $"{ConnectedDeviceCount} 个已连接，{OverlayDeviceCount} 个显示在底部，{LowBatteryDeviceCount} 个低电量"
+        : $"{ConnectedDeviceCount} connected, {OverlayDeviceCount} shown at bottom, {LowBatteryDeviceCount} low battery";
+
+    public string LanguageLabelText => Translate("语言", "Language");
+
+    public string RefreshButtonText => Translate("刷新", "Refresh");
+
+    public string ConnectedLabelText => Translate("已连接", "Connected");
+
+    public string ShownAtBottomLabelText => Translate("底部显示", "Shown at bottom");
+
+    public string LowBatteryLabelText => Translate("低电量", "Low battery");
+
+    public string DeviceListTitleText => Translate("已连接蓝牙设备", "Connected Bluetooth devices");
+
+    public string FooterText => Translate(
+        "模拟数据模式。真实蓝牙扫描将在后续硬件集成阶段接入。",
+        "Simulated data mode. Real Bluetooth scanning will be connected in the next hardware integration phase.");
+
+    public string DeviceHeaderText => Translate("设备", "Device");
+
+    public string TypeHeaderText => Translate("类型", "Type");
+
+    public string StatusHeaderText => Translate("状态", "Status");
+
+    public string BatteryHeaderText => Translate("电量", "Battery");
+
+    public string BottomHeaderText => Translate("底部", "Bottom");
+
+    public string TrayHeaderText => Translate("托盘", "Tray");
+
+    public string DisplayHeaderText => Translate("显示位置", "Display");
+
+    public string UpdatedHeaderText => Translate("更新时间", "Updated");
 
     public void RefreshDevices()
     {
@@ -56,7 +118,7 @@ public sealed class MainWindowViewModel : ObservableObject
 
         foreach (var device in CreateSampleDevices(now))
         {
-            var item = new DeviceListItemViewModel(device);
+            var item = new DeviceListItemViewModel(device, CurrentLanguage);
             item.PropertyChanged += (_, args) =>
             {
                 if (args.PropertyName is nameof(DeviceListItemViewModel.ShowInTaskbarOverlay)
@@ -69,7 +131,6 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         LastRefreshAt = now;
-        StatusText = "Displaying simulated Bluetooth device data.";
         NotifySummaryChanged();
     }
 
@@ -144,5 +205,31 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(OverlayDeviceCount));
         OnPropertyChanged(nameof(LowBatteryDeviceCount));
         OnPropertyChanged(nameof(SummaryText));
+    }
+
+    private void NotifyLocalizedTextChanged()
+    {
+        OnPropertyChanged(nameof(LastRefreshText));
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(LanguageLabelText));
+        OnPropertyChanged(nameof(RefreshButtonText));
+        OnPropertyChanged(nameof(ConnectedLabelText));
+        OnPropertyChanged(nameof(ShownAtBottomLabelText));
+        OnPropertyChanged(nameof(LowBatteryLabelText));
+        OnPropertyChanged(nameof(DeviceListTitleText));
+        OnPropertyChanged(nameof(FooterText));
+        OnPropertyChanged(nameof(DeviceHeaderText));
+        OnPropertyChanged(nameof(TypeHeaderText));
+        OnPropertyChanged(nameof(StatusHeaderText));
+        OnPropertyChanged(nameof(BatteryHeaderText));
+        OnPropertyChanged(nameof(BottomHeaderText));
+        OnPropertyChanged(nameof(TrayHeaderText));
+        OnPropertyChanged(nameof(DisplayHeaderText));
+        OnPropertyChanged(nameof(UpdatedHeaderText));
+    }
+
+    private string Translate(string chinese, string english)
+    {
+        return CurrentLanguage == AppLanguage.Chinese ? chinese : english;
     }
 }

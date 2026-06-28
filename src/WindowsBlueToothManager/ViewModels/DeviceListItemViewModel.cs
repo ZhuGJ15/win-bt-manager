@@ -6,8 +6,9 @@ public sealed class DeviceListItemViewModel : ObservableObject
 {
     private bool _showInTaskbarOverlay;
     private bool _showInTray;
+    private AppLanguage _language;
 
-    public DeviceListItemViewModel(BluetoothDeviceInfo device)
+    public DeviceListItemViewModel(BluetoothDeviceInfo device, AppLanguage language)
     {
         DeviceId = device.DeviceId;
         Name = device.Name;
@@ -18,6 +19,7 @@ public sealed class DeviceListItemViewModel : ObservableObject
         _showInTray = device.ShowInTray;
         LastUpdatedAt = device.LastUpdatedAt;
         StatusMessage = device.StatusMessage;
+        _language = language;
     }
 
     public string DeviceId { get; }
@@ -33,6 +35,18 @@ public sealed class DeviceListItemViewModel : ObservableObject
     public DateTime LastUpdatedAt { get; }
 
     public string? StatusMessage { get; }
+
+    public AppLanguage Language
+    {
+        get => _language;
+        set
+        {
+            if (SetProperty(ref _language, value))
+            {
+                NotifyLocalizedPropertiesChanged();
+            }
+        }
+    }
 
     public bool ShowInTaskbarOverlay
     {
@@ -62,12 +76,14 @@ public sealed class DeviceListItemViewModel : ObservableObject
     {
         DeviceType.Ble => "BLE",
         DeviceType.ClassicBluetooth => "BTC",
-        _ => "Unknown"
+        _ => Language == AppLanguage.Chinese ? "未知" : "Unknown"
     };
 
-    public string ConnectionStatusText => IsConnected ? "Connected" : "Disconnected";
+    public string ConnectionStatusText => IsConnected
+        ? Translate("已连接", "Connected")
+        : Translate("已断开", "Disconnected");
 
-    public string BatteryText => BatteryLevel.HasValue ? $"{BatteryLevel.Value}%" : "Unknown";
+    public string BatteryText => BatteryLevel.HasValue ? $"{BatteryLevel.Value}%" : Translate("未知", "Unknown");
 
     public int BatteryProgressValue => BatteryLevel ?? 0;
 
@@ -77,10 +93,10 @@ public sealed class DeviceListItemViewModel : ObservableObject
         {
             if (!BatteryLevel.HasValue)
             {
-                return StatusMessage ?? "Battery unavailable";
+                return Translate("电量读取失败", "Battery unavailable");
             }
 
-            return BatteryLevel.Value < 20 ? "Low battery" : "Normal";
+            return BatteryLevel.Value < 20 ? Translate("低电量", "Low battery") : Translate("正常", "Normal");
         }
     }
 
@@ -90,22 +106,36 @@ public sealed class DeviceListItemViewModel : ObservableObject
         {
             if (ShowInTray && ShowInTaskbarOverlay)
             {
-                return "Tray + Bottom";
+                return Translate("托盘 + 底部", "Tray + Bottom");
             }
 
             if (ShowInTray)
             {
-                return "Tray";
+                return Translate("托盘", "Tray");
             }
 
             if (ShowInTaskbarOverlay)
             {
-                return "Bottom";
+                return Translate("底部", "Bottom");
             }
 
-            return "Hidden";
+            return Translate("隐藏", "Hidden");
         }
     }
 
     public string LastUpdatedText => LastUpdatedAt.ToString("HH:mm:ss");
+
+    private string Translate(string chinese, string english)
+    {
+        return Language == AppLanguage.Chinese ? chinese : english;
+    }
+
+    private void NotifyLocalizedPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(DeviceTypeText));
+        OnPropertyChanged(nameof(ConnectionStatusText));
+        OnPropertyChanged(nameof(BatteryText));
+        OnPropertyChanged(nameof(BatteryStateText));
+        OnPropertyChanged(nameof(DisplayTargetText));
+    }
 }

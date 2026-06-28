@@ -60,10 +60,22 @@
                 BorderThickness="0,0,0,1"
                 Padding="24,18">
             <DockPanel LastChildFill="True">
-                <Button DockPanel.Dock="Right"
-                        Style="{StaticResource PrimaryButtonStyle}"
-                        Content="Refresh"
-                        Click="RefreshButton_Click" />
+                <StackPanel DockPanel.Dock="Right"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Top">
+                    <TextBlock Margin="0,8,8,0"
+                               Style="{StaticResource SecondaryTextStyle}"
+                               Text="{Binding LanguageLabelText}" />
+                    <ComboBox Width="112"
+                              Height="36"
+                              Margin="0,0,12,0"
+                              ItemsSource="{Binding LanguageOptions}"
+                              DisplayMemberPath="DisplayName"
+                              SelectedItem="{Binding SelectedLanguageOption, Mode=TwoWay}" />
+                    <Button Style="{StaticResource PrimaryButtonStyle}"
+                            Content="{Binding RefreshButtonText}"
+                            Click="RefreshButton_Click" />
+                </StackPanel>
                 <StackPanel>
                     <TextBlock Text="WindowsBlueToothManager"
                                FontSize="26"
@@ -93,7 +105,7 @@
                         Style="{StaticResource SummaryPanelStyle}"
                         Margin="0,0,12,0">
                     <StackPanel>
-                        <TextBlock Text="Connected"
+                        <TextBlock Text="{Binding ConnectedLabelText}"
                                    Style="{StaticResource SecondaryTextStyle}" />
                         <TextBlock Margin="0,6,0,0"
                                    Text="{Binding ConnectedDeviceCount}"
@@ -107,7 +119,7 @@
                         Style="{StaticResource SummaryPanelStyle}"
                         Margin="6,0,6,0">
                     <StackPanel>
-                        <TextBlock Text="Shown at bottom"
+                        <TextBlock Text="{Binding ShownAtBottomLabelText}"
                                    Style="{StaticResource SecondaryTextStyle}" />
                         <TextBlock Margin="0,6,0,0"
                                    Text="{Binding OverlayDeviceCount}"
@@ -121,7 +133,7 @@
                         Style="{StaticResource SummaryPanelStyle}"
                         Margin="12,0,0,0">
                     <StackPanel>
-                        <TextBlock Text="Low battery"
+                        <TextBlock Text="{Binding LowBatteryLabelText}"
                                    Style="{StaticResource SecondaryTextStyle}" />
                         <TextBlock Margin="0,6,0,0"
                                    Text="{Binding LowBatteryDeviceCount}"
@@ -151,7 +163,7 @@
                                    Style="{StaticResource SecondaryTextStyle}"
                                    Text="{Binding LastRefreshText}" />
                         <StackPanel>
-                            <TextBlock Text="Connected Bluetooth devices"
+                            <TextBlock Text="{Binding DeviceListTitleText}"
                                        FontSize="18"
                                        FontWeight="SemiBold"
                                        Foreground="#0F172A" />
@@ -175,19 +187,19 @@
                               Background="#FFFFFF"
                               AlternatingRowBackground="#F8FAFC">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Device"
+                            <DataGridTextColumn x:Name="DeviceColumn"
                                                 Width="2.2*"
                                                 Binding="{Binding Name}"
                                                 IsReadOnly="True" />
-                            <DataGridTextColumn Header="Type"
+                            <DataGridTextColumn x:Name="TypeColumn"
                                                 Width="0.8*"
                                                 Binding="{Binding DeviceTypeText}"
                                                 IsReadOnly="True" />
-                            <DataGridTextColumn Header="Status"
+                            <DataGridTextColumn x:Name="StatusColumn"
                                                 Width="1*"
                                                 Binding="{Binding ConnectionStatusText}"
                                                 IsReadOnly="True" />
-                            <DataGridTemplateColumn Header="Battery"
+                            <DataGridTemplateColumn x:Name="BatteryColumn"
                                                     Width="1.8*"
                                                     IsReadOnly="True">
                                 <DataGridTemplateColumn.CellTemplate>
@@ -218,17 +230,17 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridCheckBoxColumn Header="Bottom"
+                            <DataGridCheckBoxColumn x:Name="BottomColumn"
                                                     Width="0.8*"
                                                     Binding="{Binding ShowInTaskbarOverlay, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            <DataGridCheckBoxColumn Header="Tray"
+                            <DataGridCheckBoxColumn x:Name="TrayColumn"
                                                     Width="0.7*"
                                                     Binding="{Binding ShowInTray, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            <DataGridTextColumn Header="Display"
+                            <DataGridTextColumn x:Name="DisplayColumn"
                                                 Width="1.1*"
                                                 Binding="{Binding DisplayTargetText}"
                                                 IsReadOnly="True" />
-                            <DataGridTextColumn Header="Updated"
+                            <DataGridTextColumn x:Name="UpdatedColumn"
                                                 Width="0.9*"
                                                 Binding="{Binding LastUpdatedText}"
                                                 IsReadOnly="True" />
@@ -244,7 +256,7 @@
                 BorderThickness="0,1,0,0"
                 Padding="24,12">
             <TextBlock Style="{StaticResource SecondaryTextStyle}"
-                       Text="Simulated data mode. Real Bluetooth scanning will be connected in the next hardware integration phase." />
+                       Text="{Binding FooterText}" />
         </Border>
     </Grid>
 </Window>
