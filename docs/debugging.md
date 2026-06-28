@@ -49,6 +49,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | --- | --- |
 | `dotnet` 命令不存在 | 安装 .NET 8 SDK，并重新打开终端 |
 | 找不到 WPF 相关目标 | 确认在 Windows 环境运行，且安装的是 .NET SDK 不是 Runtime |
+| `error NETSDK1135: SupportedOSPlatformVersion 10.0.18362.0 不能高于 TargetPlatformVersion 7.0` | 已将项目目标框架修正为 `net8.0-windows10.0.18362.0`，请重新执行 `dotnet build WindowsBlueToothManager.sln` |
 | Visual Studio 无法加载项目 | 确认 Visual Studio 2022 安装了 `.NET desktop development` 工作负载 |
 | 当前机器不是 Windows | WPF 应用不能在 macOS/Linux 上直接运行，请在 Windows 10/11 上验证 |
 
@@ -57,6 +58,6 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 项目 | 状态 | 备注 |
 | --- | --- | --- |
 | 文件结构检查 | 已完成 | 已在当前仓库确认解决方案和项目文件存在 |
+| NETSDK1135 修复 | 已完成 | 已将 `TargetFramework` 从 `net8.0-windows` 调整为 `net8.0-windows10.0.18362.0` |
 | 本机命令行构建 | 未完成 | 当前环境没有 `dotnet` 命令，且不是 Windows WPF 调试环境 |
 | 用户 Windows 调试确认 | 待确认 | 需要用户按本文档在 Windows 10/11 上验证 |
-
