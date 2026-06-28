@@ -140,8 +140,8 @@ public partial class TaskbarOverlayWindow : Window
                 var alignment = GetTaskbarAlignment();
                 var targetRect = GetTaskbarTargetRect(alignment);
                 OverlayItems.HorizontalAlignment = alignment == 0
-                    ? HorizontalAlignment.Right
-                    : HorizontalAlignment.Left;
+                    ? System.Windows.HorizontalAlignment.Right
+                    : System.Windows.HorizontalAlignment.Left;
 
                 Width = Math.Clamp(displayDeviceCount * 112, 120, 448);
                 Height = Math.Min(46, Math.Max(38, taskbarHeight));
@@ -163,7 +163,7 @@ public partial class TaskbarOverlayWindow : Window
                 return;
             }
 
-            OverlayItems.HorizontalAlignment = HorizontalAlignment.Center;
+            OverlayItems.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
             Width = Math.Min(96, Math.Max(48, taskbarWidth));
             Height = Math.Min(220, Math.Max(120, displayDeviceCount * 48));
             var verticalX = Math.Max(0, (taskbarWidth - (int)Math.Ceiling(Width * GetDpiScale())) / 2);
