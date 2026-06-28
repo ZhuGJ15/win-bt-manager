@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.ComponentModel;
 using Microsoft.Win32;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -54,6 +55,7 @@ public partial class TaskbarOverlayWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        RebuildDeviceTiles();
         if (!AttachAndPosition())
         {
             System.Windows.MessageBox.Show(
@@ -92,6 +94,7 @@ public partial class TaskbarOverlayWindow : Window
             or nameof(MainWindowViewModel.HasTaskbarOverlayDevices)
             or nameof(MainWindowViewModel.OverlayDeviceCount))
         {
+            RebuildDeviceTiles();
             QueueAttachAndPosition();
         }
     }
@@ -170,7 +173,7 @@ public partial class TaskbarOverlayWindow : Window
             {
                 var alignment = GetTaskbarAlignment();
                 var targetRect = GetTaskbarTargetRect(alignment);
-                OverlayItems.HorizontalAlignment = alignment == 0
+                DeviceTilesPanel.HorizontalAlignment = alignment == 0
                     ? System.Windows.HorizontalAlignment.Right
                     : System.Windows.HorizontalAlignment.Left;
 
@@ -196,7 +199,7 @@ public partial class TaskbarOverlayWindow : Window
                 return;
             }
 
-            OverlayItems.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+            DeviceTilesPanel.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
             Width = DeviceTileWidth + DeviceTileHorizontalMargin * 2;
             Height = Math.Min(220, Math.Max(DeviceTileHeight, displayDeviceCount * (DeviceTileHeight + 4)));
             SynchronizeInnerLayoutSize(Width, Height);
@@ -228,8 +231,80 @@ public partial class TaskbarOverlayWindow : Window
     {
         OverlayRoot.Width = width;
         OverlayRoot.Height = height;
-        OverlayItems.Width = width;
-        OverlayItems.Height = height;
+        DeviceTilesPanel.Width = width;
+        DeviceTilesPanel.Height = height;
+    }
+
+    private void RebuildDeviceTiles()
+    {
+        DeviceTilesPanel.Children.Clear();
+        var devices = _viewModel.TaskbarOverlayDevices
+            .Take(MaxDisplayedTaskbarDeviceCount)
+            .ToList();
+
+        PlaceholderTile.Visibility = devices.Count == 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        DeviceTilesPanel.Visibility = devices.Count == 0
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+
+        foreach (var device in devices)
+        {
+            DeviceTilesPanel.Children.Add(CreateDeviceTile(device));
+        }
+    }
+
+    private static Border CreateDeviceTile(DeviceListItemViewModel device)
+    {
+        var nameText = new TextBlock
+        {
+            Text = device.Name,
+            Width = DeviceTileWidth - 8,
+            FontSize = 8,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Brushes.WhiteSmoke,
+            TextAlignment = TextAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            ClipToBounds = true
+        };
+
+        var batteryText = new TextBlock
+        {
+            Text = device.BatteryText,
+            Width = DeviceTileWidth - 8,
+            Margin = new Thickness(0, 1, 0, 0),
+            FontSize = 10,
+            FontWeight = FontWeights.Bold,
+            Foreground = ToBrush(device.BatteryProgressBrush),
+            TextAlignment = TextAlignment.Center
+        };
+
+        var content = new StackPanel
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            ClipToBounds = true
+        };
+        content.Children.Add(nameText);
+        content.Children.Add(batteryText);
+
+        return new Border
+        {
+            Width = DeviceTileWidth,
+            Height = DeviceTileHeight,
+            Margin = new Thickness(DeviceTileHorizontalMargin, 0, DeviceTileHorizontalMargin, 0),
+            Padding = new Thickness(3, 1, 3, 1),
+            Background = ToBrush("#2B313A"),
+            BorderBrush = ToBrush("#434B57"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(5),
+            Child = content
+        };
+    }
+
+    private static Brush ToBrush(string color)
+    {
+        return (Brush)new BrushConverter().ConvertFromString(color)!;
     }
 
     private Rect GetTaskbarTargetRect(int alignment)
