@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.ComponentModel;
 using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Interop;
@@ -38,11 +39,12 @@ public partial class TaskbarOverlayWindow : Window
         RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
         _viewModel = viewModel;
         DataContext = viewModel;
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         SourceInitialized += OnSourceInitialized;
         Loaded += OnLoaded;
         Closed += OnClosed;
         _positionTimer.Interval = TimeSpan.FromSeconds(2);
-        _positionTimer.Tick += (_, _) => AttachAndPosition();
+        _positionTimer.Tick += (_, _) => QueueAttachAndPosition();
     }
 
     private void OnSourceInitialized(object? sender, EventArgs e)
@@ -73,6 +75,7 @@ public partial class TaskbarOverlayWindow : Window
         _hwndSource?.RemoveHook(WpfWndProc);
         _hwndSource?.Dispose();
         _hwndSource = null;
+        _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         if (_windowHandle != IntPtr.Zero)
         {
             SetParent(_windowHandle, IntPtr.Zero);
@@ -81,6 +84,27 @@ public partial class TaskbarOverlayWindow : Window
         SourceInitialized -= OnSourceInitialized;
         Loaded -= OnLoaded;
         Closed -= OnClosed;
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(MainWindowViewModel.TaskbarOverlayDevices)
+            or nameof(MainWindowViewModel.HasTaskbarOverlayDevices)
+            or nameof(MainWindowViewModel.OverlayDeviceCount))
+        {
+            QueueAttachAndPosition();
+        }
+    }
+
+    private void QueueAttachAndPosition()
+    {
+        _ = Dispatcher.BeginInvoke(
+            () =>
+            {
+                UpdateLayout();
+                AttachAndPosition();
+            },
+            DispatcherPriority.Loaded);
     }
 
     private bool AttachAndPosition()
