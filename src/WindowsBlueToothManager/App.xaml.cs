@@ -4,7 +4,7 @@ using WindowsBlueToothManager.Views.Windows;
 
 namespace WindowsBlueToothManager;
 
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     public App()
     {
@@ -50,7 +50,7 @@ public partial class App : Application
 
     private static void ShowStartupError(Exception exception)
     {
-        MessageBox.Show(
+        System.Windows.MessageBox.Show(
             exception.ToString(),
             "WindowsBlueToothManager startup error",
             MessageBoxButton.OK,

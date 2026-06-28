@@ -320,6 +320,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | 找不到托盘图标 | 检查 Windows 隐藏图标区域；部分系统会默认折叠新托盘图标 |
 | 关闭窗口后以为应用没退出 | 当前行为是关闭窗口隐藏到托盘；需要从托盘菜单点击“退出”才真正结束 |
 | `NotifyIcon` 相关类型找不到 | 确认项目文件中已开启 `<UseWindowsForms>true</UseWindowsForms>` |
+| `Application` 是 WinForms 和 WPF 之间的不明确引用 | 已将 `App.xaml.cs` 的基类显式改为 `System.Windows.Application`，启动错误弹窗也显式使用 WPF `System.Windows.MessageBox` |
 
 ### 当前验证状态
 
