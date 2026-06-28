@@ -248,6 +248,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | Windows 设置里能看到电量，但应用显示无法获取电量 | 该设备可能通过厂商驱动或非标准接口暴露电量，需要后续补充 WMI 或厂商接口策略；请记录设备型号、Windows 设置页显示的电量、应用中的设备名称 |
 | UI 显示“设备刷新失败：找不到元素”且列表空白 | 已将电量属性读取从全局枚举参数改为逐设备、逐属性尝试，并为基础设备枚举增加无属性降级；请重新构建运行，预期不再因单个属性不支持而清空设备列表 |
 | `CS0121 Math.Clamp(byte, byte, byte) 和 Math.Clamp(int, int, int) 调用具有二义性` | 已将 `DataReader.ReadByte()` 的返回值显式转换为 `int` 后再调用 `Math.Clamp` |
+| `CS0199 无法将静态只读字段用作 ref 或 out 值` | 已将传给 `SetupDiGetClassDevs` 的设备类 GUID 改为方法内局部变量，再以 `ref` 传入 |
 | 读取时界面短暂显示刷新中 | BLE 电量读取有 3 秒单设备超时，这是为了避免单个设备卡住刷新 |
 | sanag 耳机没有电量 | 已参考 `SpLlry/SplusXBTMeter` 补充 SetupAPI/CfgMgr32 的 `BTHENUM` devnode 电量属性读取；请重新构建运行并等待一次刷新，如果仍失败，请确认 Windows 设置页是否能显示 sanag 耳机电量 |
 | BTC 设备没有电量 | 当前已尝试读取 Windows 设备属性、蓝牙 devnode 属性、`BTHPORT` 注册表缓存和 PnP 设备节点；如果仍没有电量，请记录设备型号和 Windows 蓝牙设置页是否显示电量 |

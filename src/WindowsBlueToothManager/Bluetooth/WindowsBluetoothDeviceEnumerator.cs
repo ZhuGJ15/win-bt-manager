@@ -466,8 +466,9 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
             return null;
         }
 
+        var systemDeviceClassGuid = SystemDeviceClassGuid;
         var infoSet = SetupDiGetClassDevs(
-            ref SystemDeviceClassGuid,
+            ref systemDeviceClassGuid,
             null,
             IntPtr.Zero,
             DigcfPresent);
