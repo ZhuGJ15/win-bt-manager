@@ -253,6 +253,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | UI 显示“设备刷新失败：找不到元素”且列表空白 | 已将电量属性读取从全局枚举参数改为逐设备、逐属性尝试，并为基础设备枚举增加无属性降级；请重新构建运行，预期不再因单个属性不支持而清空设备列表 |
 | `CS0121 Math.Clamp(byte, byte, byte) 和 Math.Clamp(int, int, int) 调用具有二义性` | 已将 `DataReader.ReadByte()` 的返回值显式转换为 `int` 后再调用 `Math.Clamp` |
 | `CS0199 无法将静态只读字段用作 ref 或 out 值` | 已将传给 `SetupDiGetClassDevs` 的设备类 GUID 改为方法内局部变量，再以 `ref` 传入 |
+| `CS0411 无法从用法中推断 SelectMany 类型参数` | 已将同一设备去重逻辑中的 `SelectMany` 改为显式列表累加，避免分支返回类型推断失败 |
 | 读取时界面短暂显示刷新中 | BLE 电量读取有 3 秒单设备超时，这是为了避免单个设备卡住刷新 |
 | BLE 设备没有电量 | 当前已尝试 BLE GATT Battery Service 的 `Uncached -> Cached` 双路径和 Windows 设备属性；如果仍没有电量，请确认 Windows 设置页是否显示该 BLE 设备电量 |
 | sanag 耳机没有电量 | 已参考 `SpLlry/SplusXBTMeter` 补充 SetupAPI/CfgMgr32 的 `BTHENUM` devnode 电量属性读取；请重新构建运行并等待一次刷新，如果仍失败，请确认 Windows 设置页是否能显示 sanag 耳机电量 |

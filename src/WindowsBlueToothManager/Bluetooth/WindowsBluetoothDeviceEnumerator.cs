@@ -154,12 +154,18 @@ public sealed class WindowsBluetoothDeviceEnumerator : IBluetoothDeviceEnumerato
 
     private static IReadOnlyList<BluetoothDeviceInfo> DeduplicateDevices(IEnumerable<BluetoothDeviceInfo> devices)
     {
-        var deduplicatedDevices = devices
-            .GroupBy(GetAddressDeduplicationKey, StringComparer.OrdinalIgnoreCase)
-            .SelectMany(group => group.Key is null
-                ? group
-                : new[] { ChoosePreferredDevice(group) })
-            .ToList();
+        var deduplicatedDevices = new List<BluetoothDeviceInfo>();
+
+        foreach (var group in devices.GroupBy(GetAddressDeduplicationKey, StringComparer.OrdinalIgnoreCase))
+        {
+            if (group.Key is null)
+            {
+                deduplicatedDevices.AddRange(group);
+                continue;
+            }
+
+            deduplicatedDevices.Add(ChoosePreferredDevice(group));
+        }
 
         var result = new List<BluetoothDeviceInfo>();
 
