@@ -117,6 +117,7 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | --- | --- |
 | 窗口仍显示骨架提示页 | 确认已拉取或保存最新代码，并重新执行 `dotnet build` |
 | 执行 `dotnet run` 后没有窗口也没有报错 | 已将启动方式改为显式创建主窗口，并增加启动异常弹窗；请重新构建后运行，如果仍失败，应出现 `WindowsBlueToothManager startup error` 弹窗 |
+| `无法对 ... BatteryProgressValue 类型的只读属性进行 TwoWay 或 OneWayToSource 绑定` | 已将电量进度条的 `ProgressBar.Value` 绑定显式改为 `Mode=OneWay` |
 | 表格没有设备数据 | 确认 `MainWindow.xaml.cs` 中设置了 `DataContext = _viewModel` |
 | 勾选 Bottom/Tray 后统计不变 | 确认点击的是复选框本身，或切换单元格后观察统计区域 |
 | 真实蓝牙设备没有出现 | 当前功能只使用模拟数据，真实设备枚举会在后续功能接入 |
@@ -127,5 +128,6 @@ dotnet run --project src/WindowsBlueToothManager/WindowsBlueToothManager.csproj
 | --- | --- | --- |
 | 文件结构检查 | 已完成 | 已新增模型和 ViewModel，主窗口已绑定模拟数据 |
 | 启动异常可见化 | 已完成 | 已改为代码显式创建主窗口，并为启动失败增加错误弹窗 |
+| BatteryProgressValue 绑定修复 | 已完成 | 已将电量进度条只读属性绑定修正为单向绑定 |
 | 本机静态检查 | 已完成 | 当前环境可做 XML/XAML 格式检查，但不能运行 WPF |
 | 用户 Windows 调试确认 | 待确认 | 需要用户按本文档在 Windows 10/11 上验证 |

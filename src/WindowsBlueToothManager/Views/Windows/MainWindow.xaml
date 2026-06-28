@@ -202,7 +202,7 @@
                                                 <ProgressBar Minimum="0"
                                                              Maximum="100"
                                                              Height="8"
-                                                             Value="{Binding BatteryProgressValue}" />
+                                                             Value="{Binding BatteryProgressValue, Mode=OneWay}" />
                                                 <TextBlock Margin="0,6,0,0"
                                                            Text="{Binding BatteryStateText}"
                                                            FontSize="12"
